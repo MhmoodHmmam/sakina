@@ -82,11 +82,39 @@ Verified against the Nokia NaC portal playground and SDK introspection on
 ### Auth — the biggest gotcha
 
 `NetworkAsCodeApiEnvironment.DEFAULT = 'https://network-as-code.p-eu.rapidapi.com'`
+— this URL (the one you connect to) is correct as-is. Do not override `base_url`.
 
 **`NAC_API_KEY` must be a RapidAPI key with an active Network-as-Code
 subscription — NOT a Nokia portal key.** If every call 401s/403s, this is why.
 `client.oauth.get_client_credentials()` exists but takes no args; it is not the
 auth path.
+
+**`rapidapi_host` is a REQUIRED constructor arg, separate from `base_url`, and
+easy to get wrong in two different ways.** Verified live 2026-07-16:
+
+```python
+nac.NetworkAsCodeApi(
+    api_key=NAC_API_KEY,
+    rapidapi_host="network-as-code.nokia.rapidapi.com",  # NOT the connect URL's host
+)
+```
+
+- Omit `rapidapi_host` entirely → SDK never sends the `x-rapidapi-host` header
+  → RapidAPI's shared `p-eu` gateway can't resolve which upstream tenant you
+  mean → **404 `{"message": "API doesn't exists"}`** on every single endpoint,
+  account-wide, not endpoint-specific. Looks nothing like an auth failure —
+  confirmed identical even with a raw `httpx` call bypassing the SDK.
+- Set `rapidapi_host` to the same string as the connect URL
+  (`network-as-code.p-eu.rapidapi.com`) → **`httpx.ConnectError: getaddrinfo
+  failed`**. `network-as-code.nokia.rapidapi.com` is a routing token this
+  account's gateway understands, not a resolvable DNS name — don't `base_url`
+  it.
+- Get the exact `x-rapidapi-host` value from your own account's RapidAPI code
+  snippet (Location Retrieval → code snippets → cURL). It is tenant-specific;
+  do not assume `nokia` is universal across all NaC subscriptions.
+
+`sakina/camara.py`'s `_build_client()` implements this correctly — copy that
+pattern for any new CAMARA client construction.
 
 ### Method signatures (verified)
 
@@ -221,10 +249,22 @@ handing an impersonator priority spectrum is not.
 - ✅ LangGraph agent executes end-to-end: 14 calls, 5 API families
 - ✅ 21 tests passing on the confidence-weighting core
 - ✅ Streamlit console renders the live trace
-- ✅ Replay mode runs with zero credentials
+- ⬜ **Replay mode currently broken — no `fixtures/*.json` exist on disk.**
+  `camara.py`'s `FIXTURE_DIR` resolves fine but the directory has no recorded
+  responses yet; `replay`/`hybrid` fallback will `FileNotFoundError`. Re-record
+  from live once S1.1 output is trusted (`save_fixture` already wired via
+  `_invoke(..., record=True)`).
 - ✅ Idea Capture .docx drafted (needs name/team/contact)
-- ⬜ **Live Python calls never verified with a real RapidAPI key** ← blocker
-- ⬜ **Real LLM output never seen** — prompts tuned against fabricated responses
+- ✅ **S1.1 done (2026-07-16): live Nokia NaC verified with a real RapidAPI
+  key.** 3/7 APIs exercised live (congestion_insights, location, device_status)
+  via `run_cycle.py jamarat-bridge`. Root cause of the initial 404s was a
+  missing/wrong `rapidapi_host` constructor arg — see Auth section above, fixed
+  in `camara.py`.
+- 🟡 **S1.2 in progress: real LLM output seen, but primary provider is dead.**
+  `gemini-2.5-flash` 404s — "no longer available to new users." Groq fallback
+  fired automatically and produced valid, evidence-grounded reasoning (cited
+  actual confidence/congestion numbers). `config.PRIMARY_MODEL` needs a live
+  Gemini model id before Gemini can be exercised as primary.
 - ⬜ Pitch deck, architecture diagram, demo video
 
 ## Conventions

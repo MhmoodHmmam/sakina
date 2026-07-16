@@ -12,3 +12,6 @@ streamlit>=1.40.0
 network-as-code
 
 python-dotenv>=1.0.0
+
+# Test runner (dev-only, not part of the agent layer)
+pytest>=8.0.0

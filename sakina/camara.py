@@ -25,19 +25,34 @@ FIXTURE_DIR = Path(__file__).resolve().parent.parent / "fixtures"
 # --- SDK bootstrap -----------------------------------------------------------
 
 
+# Two distinct RapidAPI values, easy to conflate:
+#   - the URL you actually connect to (NetworkAsCodeApiEnvironment.DEFAULT,
+#     network-as-code.p-eu.rapidapi.com) — this one IS correct as the SDK default.
+#   - the x-rapidapi-host HEADER, which RapidAPI's shared p-eu gateway uses to
+#     route to the right upstream tenant. For this account's subscription that
+#     value is network-as-code.nokia.rapidapi.com — a routing token, not a
+#     resolvable hostname. Confirmed via the account's own RapidAPI code
+#     snippet. Without this header (or with it set to the wrong value, e.g.
+#     the connect-URL host), RapidAPI's gateway 404s with
+#     {"message": "API doesn't exists"} rather than an auth error.
+# Verified 2026-07-16.
+RAPIDAPI_HOST = "network-as-code.nokia.rapidapi.com"
+
+
 def _build_client():
     """Construct the NaC client, or None if the SDK/key is unavailable.
 
-    NOTE: NetworkAsCodeApiEnvironment.DEFAULT points at RapidAPI
-    (network-as-code.p-eu.rapidapi.com), so NAC_API_KEY must be a RapidAPI key
-    with an active Network-as-Code subscription — not a portal key.
+    NAC_API_KEY must be a RapidAPI key with an active Network-as-Code
+    subscription — not a portal key.
     """
     if not config.NAC_API_KEY:
         return None
     try:
         import network_as_code as nac
 
-        return nac.NetworkAsCodeApi(api_key=config.NAC_API_KEY)
+        return nac.NetworkAsCodeApi(
+            api_key=config.NAC_API_KEY, rapidapi_host=RAPIDAPI_HOST
+        )
     except Exception:
         return None
 
