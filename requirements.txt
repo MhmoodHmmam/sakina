@@ -1,0 +1,14 @@
+# Agent orchestration — AI Resource & Tooling Guide §2 (code-first frameworks)
+langgraph>=0.2.0
+
+# Models — Guide §3 (hosted APIs with free tier)
+google-genai>=1.0.0          # Gemini 2.5 Flash (primary)
+groq>=0.11.0                 # Llama 3.3 70B (rate-limit fallback)
+
+# UI — Guide §6 (hosting & deployment)
+streamlit>=1.40.0
+
+# CAMARA trusted data layer — Guide §5
+network-as-code
+
+python-dotenv>=1.0.0
