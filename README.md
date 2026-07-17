@@ -98,6 +98,39 @@ agent decides:
 
 Nothing is user-triggered. The operator watches; the agent acts.
 
+```mermaid
+flowchart TD
+    START(["zone poll"]) --> PERCEIVE["PERCEIVE<br/>congestion_insights.query · location.retrieve · device_status.reachability"]
+    PERCEIVE --> ASSESS["ASSESS<br/>brain.assess_zone: Gemini → Groq → heuristic"]
+    ASSESS -->|"risk ≥ 0.55 or model flags escalate"| VERIFY["VERIFY<br/>sim_swap.check/date · device_status.roaming · location.verify"]
+    ASSESS -->|"risk low"| REPORT["REPORT"]
+    VERIFY --> DECIDE["DECIDE<br/>brain.gate_responders: Gemini → Groq → fail closed"]
+    DECIDE -->|"risk ≥ 0.70 and ≥1 responder cleared"| ACT["ACT<br/>qod.create_session"]
+    DECIDE -->|"else: hold"| REPORT
+    ACT --> REPORT
+    REPORT --> ENDN(["next poll — 30-300s"])
+```
+
+Every CAMARA call's provenance is decided in exactly one place —
+`camara.py::CamaraTools._invoke` — never scattered across call sites:
+
+```mermaid
+flowchart LR
+    A["any CAMARA call"] --> B{"replay mode or\nno live client?"}
+    B -->|yes| F["load_fixture&#40;&#41;"]
+    B -->|no| C["attempt live call"]
+    C --> D{"succeeded?"}
+    D -->|yes| E["Source.LIVE"]
+    D -->|no| G{"mode?"}
+    G -->|hybrid| H["trace.degrade&#40;&#41;"]
+    H --> F
+    G -->|live| I["raise — fail loudly"]
+    F --> J["Source.CACHE"]
+```
+
+Cached data is never disguised as live — `Source.LIVE` / `Source.CACHE` is
+carried on every trace entry, and `live` mode never silently masks an outage.
+
 ## Stack
 
 All components from the hackathon's AI Resource & Tooling Guide:

@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "sakina-streamlit",
+      "runtimeExecutable": "F:\\Projects\\mena-hackathon\\sakina\\sakina\\.venv\\Scripts\\streamlit.exe",
+      "runtimeArgs": ["run", "app.py"],
+      "port": 8501
+    }
+  ]
+}

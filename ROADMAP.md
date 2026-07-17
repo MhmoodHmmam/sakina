@@ -93,38 +93,49 @@ Everything downstream is unverified until these land. Do not start Stage 2 first
 
 Deadline is Aug 23. Target Aug 20. Do not use the buffer.
 
-- [ ] **S2.1** Architecture diagram
+- [x] **S2.1** Architecture diagram — done 2026-07-17. Built as two Mermaid
+  diagrams (not Excalidraw/Eraser — those needed a manual web-app session;
+  Mermaid renders natively on GitHub and needs no external tool) showing the
+  LangGraph state graph with both conditional edges and every CAMARA tool call
+  per node, plus a second diagram for the live/cache/degrade provenance path.
+  Embedded directly in README.md; still needed as a static image for the deck
+  (S2.2).
 
-  Excalidraw+AI or Eraser AI (both Guide §9). Must show: LangGraph nodes ·
-  conditional edges · each CAMARA API as an agent tool · the live/cache/degrade
-  path. This goes in both the deck and the README.
+- [x] **S2.2** Pitch deck — done 2026-07-17. `SAKINA_Pitch_Deck.pptx`, 12 slides,
+  built with pptxgenjs. All required sections present: problem, proposed
+  solution + API usage, agent design/orchestration (names LangGraph/Gemini/
+  Groq/Streamlit explicitly), technical architecture, reliability, security
+  layer, business model, real-trace demo evidence, rubric alignment, team.
 
-- [ ] **S2.2** Pitch deck
+  **The slide that wins Phase 1** (slide 4) upgraded beyond the ROADMAP's
+  original framing — re-ran the exact playground window live and got a
+  three-way comparison instead of two: naive threshold ("Low" → stand down,
+  wrong) vs `heuristic_assessment()` (0.69, confirmed live, "cannot
+  distinguish dispersal from telemetry loss") vs a fresh live Gemini call on
+  the same evidence (0.95, high confidence, names the 100% SMS-only fallback
+  as the reason the reassuring 97%-confidence "Low" reading shouldn't be
+  trusted). All three numbers are real, reproducible output, not claims.
 
-  Build sections against the **Phase 1 rubric** — Relevance, Impact, Innovation,
-  Complexity. Required by the submission spec:
-  - Problem statement and context
-  - Proposed solution and API usage
-  - **AI agent design and orchestration approach, incl. tools from the Resource &
-    Tooling Guide** ← explicitly required; name LangGraph/Gemini/Groq/Streamlit
-  - Technical architecture
-  - Business model and monetization
-  - Demo screenshots or video links
-  - Team bios and roles
+  **Caveat:** no LibreOffice available in this environment, so the deck could
+  not be rendered to images for visual QA (overflow/alignment). Content QA
+  (markitdown dump, no placeholders) and structural QA (XSD validation) both
+  passed. **Open it in PowerPoint before submitting** to check for text
+  overflow, especially the business-model table and the hand-built agent
+  graph on slide 6.
 
-  **The slide that wins Phase 1:** heuristic vs LLM on the same window. The rule
-  engine scored **0.69** off a window whose most trustworthy reading (97%) says
-  *Low* — it weighted a 16%-confidence Medium as real evidence. That is a
-  demonstrated failure, not a claim. Show both traces side by side.
-
-- [ ] **S2.3** Business model section
-
-  Weakest area — engineering is ahead of commercial. Needs real thinking:
-  - Buyer: Saudi Ministry of Hajj & Umrah? operators (STC/Mobily/Zain)? event
-    insurers?
-  - Pricing: per-pilgrim-season licence? per-zone? per-API-call passthrough?
-  - Why an operator sells this rather than builds it
-  - TAM beyond Hajj: Umrah year-round, stadiums, Expo, Ramadan markets
+- [x] **S2.3** Business model section — done 2026-07-17, folded into the deck
+  (slide 10). Decisions made:
+  - Buyer: **MNOs (STC/Mobily/Zain)** — not the Ministry directly. Rationale:
+    strongest fit for a GSMA-hosted, telecom-industry-judged hackathon;
+    operators already hold the NaC relationship, so "why sell rather than
+    build" has a clean answer (confidence-weighted judgement isn't core telco
+    competency, same reason operators buy rather than build BSS/analytics).
+    End customer the operator resells to: Ministry of Hajj & Umrah, stadium
+    operators, event insurers.
+  - Pricing: **per-pilgrim-season licence** (user's choice) — one clear number
+    per major gathering, matches existing Hajj logistics contract shape.
+  - TAM beyond Hajj: Umrah (year-round), stadiums, Expo-scale events, Ramadan
+    markets — same architecture, only the zone/device roster changes.
 
 - [ ] **S2.4** Submit Phase 1 **Aug 20**
 
