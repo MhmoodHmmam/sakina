@@ -10,7 +10,7 @@ disagrees.
 
 ## Stage 0 — Port into Claude Code · *do this first, ~20 min*
 
-- [ ] **S0.1** Create the repo and move the existing code in
+- [x] **S0.1** Create the repo and move the existing code in
 
   ```bash
   mkdir sakina && cd sakina
@@ -23,7 +23,7 @@ disagrees.
   **Do not rebuild from scratch.** The SDK archaeology in `CLAUDE.md` cost a full
   session. Porting preserves it; rewriting reintroduces the guessing.
 
-- [ ] **S0.2** Environment
+- [x] **S0.2** Environment
 
   ```bash
   python -m venv .venv
@@ -32,7 +32,7 @@ disagrees.
   cp .env.example .env             # then fill in keys
   ```
 
-- [ ] **S0.3** Confirm the port is intact
+- [x] **S0.3** Confirm the port is intact
 
   ```bash
   python -m pytest tests/ -q       # expect: 21 passed
@@ -48,49 +48,44 @@ disagrees.
 
 Everything downstream is unverified until these land. Do not start Stage 2 first.
 
-- [ ] **S1.1** 🔴 **Verify live Nokia NaC from Python**
+- [x] **S1.1** 🔴 **Verify live Nokia NaC from Python** — done 2026-07-16/17.
+  Root cause of every 404 was a missing/wrong `rapidapi_host` constructor arg,
+  not the expected failure modes below (none of which were the actual issue —
+  see CLAUDE.md Auth section for what really happened). 3 families exercised
+  in the base cycle (congestion_insights, location, device_status); sim_swap
+  and qod separately verified live during fixture recording and QoD elevation
+  testing. All 5 API families the current agent actually calls are now live-
+  verified. Geofencing (6th family in `camara.py`) isn't wired into
+  `agent.cycle()` yet — deferred to S3.2 — so it's untested against live.
 
-  The whole project has only ever run against fixtures. The playground working
-  does **not** prove the SDK + your key works.
-
-  1. Subscribe to Network-as-Code on **RapidAPI** (see `CLAUDE.md` → Auth)
-  2. Put the RapidAPI key in `.env` as `NAC_API_KEY`
-  3. `SAKINA_MODE=live python run_cycle.py jamarat-bridge`
-
-  **Expected failure modes:**
+  ~~**Expected failure modes:**~~ (none of these were it — kept for history)
   - 401/403 → wrong key type (portal key instead of RapidAPI key)
   - 422 on congestion → device dict needs `ipv4_address`
   - 422 on location verify → area shape; check nested `center`
   - 404 → simulator numbers differ on your account; pull real ones from the portal
 
-  **Definition of done:** at least 5 of 7 APIs return live data, and the trace
-  shows `LIVE` not `CACHE`. Re-record fixtures from live responses if they differ
-  from what's checked in.
+  **Definition of done:** ✅ trace shows `LIVE` not `CACHE`; fixtures re-recorded
+  from live responses (2026-07-17), replay mode now runs clean too.
 
-- [ ] **S1.2** 🔴 **See real LLM output**
+- [x] **S1.2** 🔴 **See real LLM output** — done 2026-07-17.
 
-  Prompts in `brain.py` were tuned against **fabricated** model responses. The real
-  ones may be worse, may not respect the JSON schema, may hallucinate numbers.
+  `config.PRIMARY_MODEL` was `gemini-2.5-flash`, which 404s for new API keys
+  despite still being listed by `ListModels`. Switched to
+  `gemini-flash-lite-latest` (verified reliable across repeated calls).
 
-  1. Free Gemini key: https://aistudio.google.com/apikey → `.env`
-  2. Free Groq key: https://console.groq.com/keys → `.env`
-  3. `python run_cycle.py jamarat-bridge` and read the trace closely
+  **Definition of done:** ✅ 5 consecutive live cycles, all valid JSON, all via
+  Gemini, all citing real evidence numbers (confidence %, weighted/naive means)
+  — no hallucinated figures, no schema violations.
 
-  **Watch for:** numbers cited that aren't in the evidence · `risk_score` that
-  ignores the confidence trend · contradictions field left empty when SMS-only
-  disagrees with congestion · JSON that won't parse.
+- [x] **S1.3** Force the Groq fallback and confirm it works — done 2026-07-17.
+  Forced via `GEMINI_API_KEY=<bad>` env-var override (doesn't touch `.env`,
+  since `load_dotenv()` doesn't override already-set vars). Trace showed the
+  `⚠ gemini unavailable` degrade event with the real error, then completed via
+  Groq with valid, evidence-grounded reasoning.
 
-  **Definition of done:** 5 consecutive cycles produce valid JSON and reasoning
-  that cites actual numbers from the evidence block. Iterate on `ASSESS_SYSTEM`
-  until true.
-
-- [ ] **S1.3** Force the Groq fallback and confirm it works
-
-  Temporarily set a bad `GEMINI_API_KEY`. The trace must show the degrade event
-  and complete via Groq. This is a scored line item (graceful degradation).
-
-- [ ] **S1.4** Fill in `docs/SAKINA_Idea_Capture.docx` — name, team name, contact,
-  submission date.
+- [x] **S1.4** Fill in `SAKINA_Idea_Capture.docx` — done 2026-07-17. Submitter
+  MhmoodHmmam, team SAKINA, contact mhmood.hmmam@gmail.com, submission date
+  20 Aug 2026 (the internal target, not the 23 Aug hard deadline).
 
 ---
 
