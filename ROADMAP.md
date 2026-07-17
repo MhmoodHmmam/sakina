@@ -178,8 +178,17 @@ Start Aug 24 — assume Phase 1 passes. 17 days is not enough to start from zero
   itself; the choice is logged as a `trace.decision()` before PERCEIVE.
   Verified live: cycle 1 picked Jamarat Bridge (never polled, criticality
   5/5), cycle 2 correctly moved on to Street 204 Approach.
-- [ ] **S3.2** Geofencing subscription demo via ngrok — one live subscription
-  proving the event model is understood. Keep polling as the main loop.
+- [x] **S3.2** Geofencing subscription demo via ngrok — done 2026-07-17. My
+  own tool sandbox turned out to be filesystem-isolated from the user's real
+  desktop (same-looking paths, different actual files) — `ngrok config
+  add-authtoken` run in the user's own terminal never became visible to my
+  process. Worked around it: user ran `ngrok http` themselves and handed me
+  the public forwarding URL directly, which is not a secret. Used it as the
+  `sink` for a real `camara.watch_zone()` call — got back a real subscription
+  id, confirmed it via `geofences()` listing, then cleaned up with
+  `delete_subscription()` (same discipline as the QoD session in S1.1 —
+  don't leave demo resources dangling). Kept polling as the main loop, per
+  CLAUDE.md; this was a one-off proof, not wired into `agent.py`/`app.py`.
 - [x] **S3.3** Map view in Streamlit — done 2026-07-17. pydeck `ScatterplotLayer`,
   zones colored by last risk score (calm/warm/hot bands matching the zone
   cards), grey for never-polled. `st.map` would've meant losing color-by-risk

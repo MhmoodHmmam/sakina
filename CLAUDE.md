@@ -373,3 +373,23 @@ handing an impersonator priority spectrum is not.
   hit the playground — do not pattern-match from training data.
 - **Solo constraints are real.** Suggest less, not more.
 - Update this file when a fact changes. It is the memory.
+
+## Environment gotcha: tool sandbox is filesystem-isolated from the real desktop
+
+Found during the S3.2 ngrok demo, 2026-07-17. Claude Code's Bash/PowerShell
+tools run somewhere that reports the **same** username and path strings as
+the user's real desktop (`C:\Users\pc\...`) but is a **different
+filesystem** — `ngrok config add-authtoken` run in the user's own terminal
+window produced a real, working config on their machine, while every check
+from inside these tools (`ngrok config check`, `Test-Path` via PowerShell,
+even invoking the exact same `ngrok.exe`) reported the config file missing,
+repeatedly, across multiple retries.
+
+**Consequence:** any setup step that writes to the user's profile/AppData
+from *their own* terminal (auth tokens, app configs, credential files) will
+not be visible to tool calls in this session, no matter how many times it's
+retried. Don't loop on "did you run it yet?" — the retry itself can't work
+by construction. Instead, get the *artifact* the step produces (a public
+URL, an exported file, a printed value) and hand that across explicitly, the
+way the ngrok public forwarding URL was used directly as a `sink` value here
+without ever needing the authtoken to be visible on this side.
