@@ -2,7 +2,7 @@
 langgraph>=0.2.0
 
 # Models — Guide §3 (hosted APIs with free tier)
-google-genai>=1.0.0          # Gemini 2.5 Flash (primary)
+google-genai>=1.0.0          # Gemini (gemini-flash-lite-latest, primary)
 groq>=0.11.0                 # Llama 3.3 70B (rate-limit fallback)
 
 # UI — Guide §6 (hosting & deployment)

@@ -211,6 +211,17 @@ Start Aug 24 — assume Phase 1 passes. 17 days is not enough to start from zero
   15 new tests total (`test_brain.py`, `test_camara.py`,
   `test_agent_resilience.py`) — 36 passing overall.
 - [ ] **S3.6** Deploy to Streamlit Community Cloud (Guide §6). Judges may click.
+
+  Repo pushed 2026-07-17: **https://github.com/MhmoodHmmam/sakina** (public,
+  required for the free tier). Secrets (`NAC_API_KEY`, `GEMINI_API_KEY`,
+  `GROQ_API_KEY`) become real env vars once entered in Streamlit Cloud's own
+  Secrets UI — `config.py`'s existing `os.getenv()` needs no code change.
+  **Remaining, and only you can do it** (OAuth login to your own account):
+  1. share.streamlit.io → New app → repo `MhmoodHmmam/sakina`, branch `main`,
+     main file `app.py`
+  2. Advanced settings → Secrets → paste the three keys as `KEY = "value"`
+     lines
+  3. Deploy
 - [ ] **S3.7** **Feature freeze Sep 8.** No exceptions.
 
 ---
