@@ -241,16 +241,25 @@ verify, and whether to spend a QoD session on each. Nothing is user-triggered.
 
 ```
 sakina/
-  config.py    zones, device roster, thresholds — all tunables
-  trace.py     reasoning trace; the artifact judges watch
-  camara.py    CAMARA tool layer; live/cache/degrade decided in ONE place (_invoke)
-  signals.py   confidence-weighted interpretation — deterministic, 21 tests
-  brain.py     LLM reasoning, prompts, provider fallback
-  agent.py     LangGraph StateGraph
-app.py         Streamlit operator console
-tests/         21 tests against real playground payloads
-fixtures/      recorded Nokia NaC responses — replay mode works with zero keys
+  config.py     zones, device roster, thresholds — all tunables
+  trace.py      reasoning trace; the artifact judges watch
+  camara.py     CAMARA tool layer; live/cache/degrade decided in ONE place (_invoke)
+  signals.py    confidence-weighted interpretation — deterministic, tested
+  scheduler.py  multi-zone priority arithmetic — which zone next, deterministic, tested
+  brain.py      LLM reasoning, prompts, provider fallback
+  agent.py      LangGraph StateGraph — single zone, one cycle
+app.py          Streamlit operator console — drives the scheduler across zones
+tests/          tests against real playground payloads
+fixtures/       recorded Nokia NaC responses — replay mode works with zero keys
 ```
+
+**`scheduler.py` (added Stage 3, S3.1):** the agent picks which zone to look at
+next — never-polled zones first (criticality breaks ties), then how overdue a
+zone is scaled by its last risk and criticality. Same split as `signals.py` vs
+`brain.py`: this is deterministic priority arithmetic, not LLM judgement — the
+model still only ever reasons about one zone at a time, inside `agent.cycle()`.
+`app.py` calls `scheduler.pick_next_zone()` and logs the rationale as a
+`trace.decision()` entry before the chosen zone's cycle even starts.
 
 ## Operating modes
 

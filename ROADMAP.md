@@ -145,12 +145,25 @@ Deadline is Aug 23. Target Aug 20. Do not use the buffer.
 
 Start Aug 24 — assume Phase 1 passes. 17 days is not enough to start from zero.
 
-- [ ] **S3.1** Multi-zone concurrent monitoring — agent picks which zone to poll
-  next based on its own risk assessment. Strengthens the autonomy story.
+- [x] **S3.1** Multi-zone concurrent monitoring — done 2026-07-17, ahead of
+  schedule. New `sakina/scheduler.py`: never-polled zones always outrank
+  polled ones (criticality breaks ties), then priority = overdue-ratio ×
+  risk-weight × criticality-weight. 7 tests. `app.py`'s zone dropdown is gone
+  — the operator presses "Run next cycle" and the agent picks the zone
+  itself; the choice is logged as a `trace.decision()` before PERCEIVE.
+  Verified live: cycle 1 picked Jamarat Bridge (never polled, criticality
+  5/5), cycle 2 correctly moved on to Street 204 Approach.
 - [ ] **S3.2** Geofencing subscription demo via ngrok — one live subscription
   proving the event model is understood. Keep polling as the main loop.
-- [ ] **S3.3** Map view in Streamlit (`st.map` or pydeck) — zones + risk colour.
-- [ ] **S3.4** Cycle history — show risk evolving over time, not just a snapshot.
+- [x] **S3.3** Map view in Streamlit — done 2026-07-17. pydeck `ScatterplotLayer`,
+  zones colored by last risk score (calm/warm/hot bands matching the zone
+  cards), grey for never-polled. `st.map` would've meant losing color-by-risk
+  entirely — pydeck was the only real option once "risk colour" was a
+  requirement.
+- [x] **S3.4** Cycle history — done 2026-07-17. `st.session_state["history"]`
+  appends one row per cycle; rendered as a per-zone line chart plus an
+  expandable log table. Built alongside S3.1 since multi-zone status is the
+  natural substrate for it — same `app.py` pass, avoided a second rewrite.
 - [ ] **S3.5** Harden error paths: network timeout, malformed LLM JSON, empty
   congestion, all-providers-down. Each should degrade visibly, never crash.
 - [ ] **S3.6** Deploy to Streamlit Community Cloud (Guide §6). Judges may click.
