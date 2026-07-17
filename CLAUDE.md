@@ -61,6 +61,16 @@ contradiction rather than resolving it away.
 `brain.py` does judgement. A system where a threshold function decides and the LLM
 writes the press release is not an agent. Never blur this line.
 
+**Hardening gotcha (found S3.5, 2026-07-17):** `brain.reason()`'s try/except
+only catches a *parse* failure (malformed JSON text) and retries the next
+provider. It does NOT catch a model returning valid JSON with the wrong field
+*types* — `{"risk_score": "high"}` parses fine and then crashes
+`Assessment.from_json()`'s `float()` coercion with an uncaught `ValueError`,
+invisible to `agent.py`'s `except brain.LLMUnavailable`. Confirmed as a real
+crash before fixing it, not assumed. `assess_zone()`/`gate_responders()` now
+validate shape themselves and raise `LLMUnavailable` on failure, reusing the
+already-tested fallback path instead of adding a second one.
+
 ## Verified facts — do not re-derive
 
 Verified against the Nokia NaC portal playground and SDK introspection on

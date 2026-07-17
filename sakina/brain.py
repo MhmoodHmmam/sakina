@@ -240,12 +240,41 @@ class Assessment:
 
 
 def assess_zone(evidence_text: str, trace: Trace) -> Assessment:
+    """Ask the model, then validate the shape it handed back.
+
+    reason() already retries malformed *JSON* (a parse failure) against the
+    next provider. But valid JSON with the wrong field types — risk_score as
+    the string "high" instead of a float — parses fine and only breaks here,
+    at Assessment.from_json()'s float()/int()/bool() coercion. Route that
+    failure through the same LLMUnavailable path agent.py already handles
+    (heuristic fallback, degrade logged in the trace) instead of letting a
+    ValueError crash the whole cycle.
+    """
     d = reason(ASSESS_SYSTEM, evidence_text, trace, "assess")
-    return Assessment.from_json(d)
+    try:
+        return Assessment.from_json(d)
+    except (TypeError, ValueError) as exc:
+        trace.degrade("assess response malformed", f"{type(exc).__name__}: {exc}")
+        raise LLMUnavailable(f"malformed assessment shape: {exc}") from exc
 
 
 def gate_responders(evidence_text: str, trace: Trace) -> dict:
-    return reason(VERDICT_SYSTEM, evidence_text, trace, "verdict")
+    """Ask the model for a verdict, then validate the shape before use.
+
+    _decide() iterates verdict["decisions"] expecting a list of dicts. A model
+    that returns valid JSON with "decisions" as something else (a string, a
+    single object) would otherwise crash that loop with an uncaught
+    AttributeError/TypeError. Fail the same way a missing model does instead.
+    """
+    d = reason(VERDICT_SYSTEM, evidence_text, trace, "verdict")
+    decisions = d.get("decisions")
+    if not isinstance(decisions, list) or not all(isinstance(x, dict) for x in decisions):
+        trace.degrade(
+            "verdict response malformed",
+            f"expected decisions: list[dict], got {type(decisions).__name__}",
+        )
+        raise LLMUnavailable("malformed verdict shape: decisions is not a list of objects")
+    return d
 
 
 # --- Deterministic fallback --------------------------------------------------

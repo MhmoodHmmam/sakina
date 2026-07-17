@@ -164,8 +164,27 @@ Start Aug 24 — assume Phase 1 passes. 17 days is not enough to start from zero
   appends one row per cycle; rendered as a per-zone line chart plus an
   expandable log table. Built alongside S3.1 since multi-zone status is the
   natural substrate for it — same `app.py` pass, avoided a second rewrite.
-- [ ] **S3.5** Harden error paths: network timeout, malformed LLM JSON, empty
-  congestion, all-providers-down. Each should degrade visibly, never crash.
+- [x] **S3.5** Harden error paths — done 2026-07-17. Checked each named failure
+  mode against the actual code instead of assuming; two were real, undetected
+  crashes:
+  - **Malformed LLM JSON** (right shape, wrong types — e.g. `risk_score:
+    "high"`): confirmed live that this crashed `Assessment.from_json()` with
+    an uncaught `ValueError`, invisible to `agent.py`'s existing
+    `except brain.LLMUnavailable` handler. Fixed in `brain.py` —
+    `assess_zone()`/`gate_responders()` now validate shape and route failures
+    through the same `LLMUnavailable` path already wired to the heuristic /
+    fail-closed fallback. Same bug existed for `gate_responders()`'s
+    `decisions` field (a non-list crashed `_decide()`'s loop) — same fix.
+  - **Network timeout**: already correctly handled by `camara.py`'s
+    `_invoke` — confirmed with a test that simulates a raising client;
+    `hybrid` degrades to the fixture, `live` re-raises on purpose (never
+    masks a real outage). No code change needed, just a regression test.
+  - **Empty congestion**: already handled and already tested
+    (`TestEmptyAndMalformed` in `test_signals.py` predates this stage).
+  - **All-providers-down**: already handled — `reason()`'s final
+    `LLMUnavailable` was already routed to heuristic/fail-closed.
+  15 new tests total (`test_brain.py`, `test_camara.py`,
+  `test_agent_resilience.py`) — 36 passing overall.
 - [ ] **S3.6** Deploy to Streamlit Community Cloud (Guide §6). Judges may click.
 - [ ] **S3.7** **Feature freeze Sep 8.** No exceptions.
 
