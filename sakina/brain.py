@@ -239,7 +239,22 @@ class Assessment:
         }
 
 
-def assess_zone(evidence_text: str, trace: Trace) -> Assessment:
+_ARABIC_DIRECTIVE = """
+
+RESPONSE LANGUAGE: Modern Standard Arabic (Fusha). Translate every narrative
+field into Arabic — reading, reasoning, primary_driver, contradictions,
+rationale, summary. Keep the JSON keys themselves in English exactly as
+specified. Numbers stay as numbers. Two fields are structural control
+values, not narrative — keep them as the exact English tokens given, do NOT
+translate them: confidence must be exactly "low", "medium", or "high";
+severity must be exactly "clear", "caution", or "block"."""
+
+
+def _localize(system: str, language: str) -> str:
+    return system + _ARABIC_DIRECTIVE if language == "ar" else system
+
+
+def assess_zone(evidence_text: str, trace: Trace, language: str = "en") -> Assessment:
     """Ask the model, then validate the shape it handed back.
 
     reason() already retries malformed *JSON* (a parse failure) against the
@@ -250,7 +265,7 @@ def assess_zone(evidence_text: str, trace: Trace) -> Assessment:
     (heuristic fallback, degrade logged in the trace) instead of letting a
     ValueError crash the whole cycle.
     """
-    d = reason(ASSESS_SYSTEM, evidence_text, trace, "assess")
+    d = reason(_localize(ASSESS_SYSTEM, language), evidence_text, trace, "assess")
     try:
         return Assessment.from_json(d)
     except (TypeError, ValueError) as exc:
@@ -258,7 +273,7 @@ def assess_zone(evidence_text: str, trace: Trace) -> Assessment:
         raise LLMUnavailable(f"malformed assessment shape: {exc}") from exc
 
 
-def gate_responders(evidence_text: str, trace: Trace) -> dict:
+def gate_responders(evidence_text: str, trace: Trace, language: str = "en") -> dict:
     """Ask the model for a verdict, then validate the shape before use.
 
     _decide() iterates verdict["decisions"] expecting a list of dicts. A model
@@ -266,7 +281,7 @@ def gate_responders(evidence_text: str, trace: Trace) -> dict:
     single object) would otherwise crash that loop with an uncaught
     AttributeError/TypeError. Fail the same way a missing model does instead.
     """
-    d = reason(VERDICT_SYSTEM, evidence_text, trace, "verdict")
+    d = reason(_localize(VERDICT_SYSTEM, language), evidence_text, trace, "verdict")
     decisions = d.get("decisions")
     if not isinstance(decisions, list) or not all(isinstance(x, dict) for x in decisions):
         trace.degrade(

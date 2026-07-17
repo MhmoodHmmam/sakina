@@ -1,13 +1,19 @@
 """The agent.
 
-LangGraph StateGraph: PERCEIVE -> ASSESS -> (VERIFY -> ACT) -> REPORT
+LangGraph StateGraph: PERCEIVE -> ASSESS -> (VERIFY -> DECIDE) -> ACT -> REPORT
 
 The conditional edges are the point. The agent decides:
-  - whether the evidence warrants spending identity checks (5 API calls)
+  - whether the evidence warrants spending identity checks (5 extra API calls)
   - which responders to verify
   - whether to spend a QoD session on each
 
 Nothing here is user-triggered. The operator watches; the agent acts.
+
+The trace is bilingual: every phase/thought/decision/action label goes through
+i18n.t() against state["language"]. The model's own narrative text (reading,
+reasoning, rationale, ...) is localized separately, at generation time, by
+brain.py's Arabic directive — that's judgement-language, not UI-language, and
+the two are deliberately kept apart.
 """
 from __future__ import annotations
 
@@ -16,7 +22,7 @@ from typing import Annotated, Any, TypedDict
 
 from langgraph.graph import END, StateGraph
 
-from . import brain, config
+from . import brain, config, i18n
 from .camara import CamaraTools
 from .signals import (
     CongestionRead,
@@ -30,6 +36,7 @@ from .trace import Trace
 
 class AgentState(TypedDict, total=False):
     zone_id: str
+    language: str            # "en" | "ar" — set once per cycle, read everywhere
     evidence: dict          # ZoneEvidence.summary()
     evidence_text: str      # rendered block handed to the LLM
     assessment: dict
@@ -40,6 +47,33 @@ class AgentState(TypedDict, total=False):
     apis_used: Annotated[list[str], operator.add]
 
 
+def _describe_concerns(ident, lang: str) -> list[str]:
+    """Human-facing concern phrases in the selected language.
+
+    Rebuilt from IdentityRead's raw fields rather than reusing
+    IdentityRead.concerns (signals.py's English list) — that list is also
+    used as model input elsewhere and stays English on purpose; this is the
+    separate, display-only rendering for the operator's trace panel.
+    """
+    out: list[str] = []
+    if ident.swapped:
+        age = ident.swap_age_h
+        if age is not None:
+            out.append(i18n.t("concern.sim_swapped_aged", lang, age=f"{age:.1f}"))
+        else:
+            out.append(i18n.t("concern.sim_swapped_recent", lang))
+    if ident.roaming:
+        if ident.country:
+            out.append(i18n.t("concern.roaming", lang, country=ident.country))
+        else:
+            out.append(i18n.t("concern.roaming_unknown", lang))
+    if ident.location_verified == "FALSE":
+        out.append(i18n.t("concern.location_false", lang))
+    elif ident.location_verified == "UNKNOWN":
+        out.append(i18n.t("concern.location_unknown", lang))
+    return out
+
+
 class Sakina:
     def __init__(self, tools: CamaraTools | None = None):
         self.tools = tools or CamaraTools()
@@ -48,9 +82,10 @@ class Sakina:
     # -- nodes ----------------------------------------------------------------
 
     def _perceive(self, state: AgentState) -> AgentState:
+        lang = state.get("language", "en")
         zone = config.ZONES_BY_ID[state["zone_id"]]
         t = self.tools.trace
-        t.phase("PERCEIVE", f"Gathering network signals across {zone.name}")
+        t.phase(i18n.t("phase.perceive", lang), i18n.t("phase.perceive.detail", lang, zone=zone.name))
 
         sensors = config.devices_in_zone(zone.id, "pilgrim_sensor")
         responders = config.devices_in_zone(zone.id, "responder")
@@ -67,11 +102,14 @@ class Sakina:
         text = ev.render()
 
         t.thought(
-            "Signals gathered",
-            f"{len(t.api_calls())} CAMARA calls · "
-            f"congestion weighted mean {congestion.weighted_mean:.2f} "
-            f"(naive {congestion.naive_mean:.2f}) · "
-            f"telemetry confidence {congestion.confidence_trend}",
+            i18n.t("perceive.gathered", lang),
+            i18n.t(
+                "perceive.summary", lang,
+                n=len(t.api_calls()),
+                wm=f"{congestion.weighted_mean:.2f}",
+                nm=f"{congestion.naive_mean:.2f}",
+                trend=i18n.trend_label(congestion.confidence_trend, lang),
+            ),
         )
         return {
             "evidence": ev.summary(),
@@ -80,22 +118,25 @@ class Sakina:
         }
 
     def _assess(self, state: AgentState) -> AgentState:
+        lang = state.get("language", "en")
         t = self.tools.trace
-        t.phase("ASSESS", "Weighing evidence — is this crowd or is this noise?")
+        t.phase(i18n.t("phase.assess", lang), i18n.t("phase.assess.detail", lang))
         try:
-            a = brain.assess_zone(state["evidence_text"], t)
+            a = brain.assess_zone(state["evidence_text"], t, language=lang)
         except brain.LLMUnavailable as exc:
             t.degrade("All model providers unreachable", str(exc))
             a = brain.heuristic_assessment(state["evidence"])
 
-        detail = (
-            f"{a.reading}\n\n{a.reasoning}\n\n"
-            f"primary driver: {a.primary_driver}"
-        )
+        detail = f"{a.reading}\n\n{a.reasoning}\n\n" + i18n.t("assess.primary_driver", lang, driver=a.primary_driver)
         if a.contradictions:
-            detail += "\ncontradictions: " + "; ".join(a.contradictions)
+            detail += "\n" + i18n.t("assess.contradictions", lang, items="; ".join(a.contradictions))
         t.thought(
-            f"Risk {a.risk_score:.2f} ({a.confidence} confidence) · via {a.model}",
+            i18n.t(
+                "assess.risk_label", lang,
+                score=f"{a.risk_score:.2f}",
+                confidence=i18n.confidence_label(a.confidence, lang),
+                model=a.model,
+            ),
             detail,
             payload=a.to_dict(),
         )
@@ -103,14 +144,11 @@ class Sakina:
 
     def _verify(self, state: AgentState) -> AgentState:
         """Identity-gate the responders. The agent chose to spend these calls."""
+        lang = state.get("language", "en")
         zone = config.ZONES_BY_ID[state["zone_id"]]
         t = self.tools.trace
         responders = config.devices_in_zone(zone.id, "responder")
-        t.phase(
-            "VERIFY",
-            f"Risk is material — checking identity of {len(responders)} responder(s) "
-            f"before considering bandwidth elevation",
-        )
+        t.phase(i18n.t("phase.verify", lang), i18n.t("phase.verify.detail", lang, n=len(responders)))
 
         out: list[dict] = []
         for d in responders:
@@ -128,19 +166,24 @@ class Sakina:
                 "reachability": reach.summary(),
             }
             out.append(rec)
-            if ident.concerns:
+            concerns = _describe_concerns(ident, lang)
+            if concerns:
                 t.thought(
-                    f"{d.label} — {len(ident.concerns)} concern(s)",
-                    "; ".join(ident.concerns),
+                    i18n.t("verify.concerns", lang, label=d.label, n=len(concerns)),
+                    "; ".join(concerns),
                 )
             else:
-                t.thought(f"{d.label} — identity clean", "no anomalies in network signals")
+                t.thought(
+                    i18n.t("verify.clean_label", lang, label=d.label),
+                    i18n.t("verify.clean_detail", lang),
+                )
 
         return {"identity": out, "apis_used": ["sim_swap", "location", "device_status"]}
 
     def _decide(self, state: AgentState) -> AgentState:
+        lang = state.get("language", "en")
         t = self.tools.trace
-        t.phase("DECIDE", "Gating bandwidth elevation per responder")
+        t.phase(i18n.t("phase.decide", lang), i18n.t("phase.decide.detail", lang))
 
         a = state["assessment"]
         blocks: list[str] = [
@@ -161,7 +204,7 @@ class Sakina:
             blocks.append(f"  concerns: {i['concerns'] or 'none'}")
 
         try:
-            verdict = brain.gate_responders("\n".join(blocks), t)
+            verdict = brain.gate_responders("\n".join(blocks), t, language=lang)
         except brain.LLMUnavailable:
             # Fail closed: no model, no elevation. Refusing is recoverable;
             # handing an impersonator priority spectrum is not.
@@ -186,15 +229,20 @@ class Sakina:
             dev = config.DEVICES_BY_NUMBER.get(d.get("phone_number", ""))
             name = dev.label if dev else d.get("phone_number")
             t.decision(
-                f"{name} → {'ALLOW' if d.get('allow') else 'REFUSE'} "
-                f"[{d.get('severity', '?')}]",
+                i18n.t(
+                    "decide.verdict_label", lang,
+                    name=name,
+                    verdict=i18n.verdict_label(bool(d.get("allow")), lang),
+                    severity=i18n.severity_label(d.get("severity", "?"), lang),
+                ),
                 d.get("rationale", ""),
             )
         return {"verdict": verdict}
 
     def _act(self, state: AgentState) -> AgentState:
+        lang = state.get("language", "en")
         t = self.tools.trace
-        t.phase("ACT", "Applying network changes")
+        t.phase(i18n.t("phase.act", lang), i18n.t("phase.act.detail", lang))
         actions: list[dict] = []
         for d in state.get("verdict", {}).get("decisions", []):
             if not d.get("allow"):
@@ -206,65 +254,71 @@ class Sakina:
             sid = resp.get("sessionId") or resp.get("session_id")
             status = resp.get("qosStatus") or resp.get("qos_status")
             t.action(
-                f"QoD session for {dev.label}",
-                f"profile {config.THRESHOLDS.qod_profile} · status {status} · id {sid}",
+                i18n.t("act.qod_session", lang, label=dev.label),
+                i18n.t("act.qod_detail", lang, profile=config.THRESHOLDS.qod_profile, status=status, sid=sid),
                 payload=resp,
             )
             actions.append(
                 {"phone_number": dev.phone_number, "session_id": sid, "status": status}
             )
         if not actions:
-            t.action("No elevations applied", "every candidate was refused or none qualified")
+            t.action(i18n.t("act.none_applied", lang), i18n.t("act.none_applied_detail", lang))
         return {"actions": actions, "apis_used": ["qod"]}
 
     def _report(self, state: AgentState) -> AgentState:
+        lang = state.get("language", "en")
         t = self.tools.trace
         live, total = t.live_ratio()
         t.phase(
-            "REPORT",
-            f"Cycle complete · {total} CAMARA calls ({live} live, {total - live} cached) "
-            f"across {len(t.apis_touched())} APIs · {t.elapsed_ms:.0f}ms · "
-            f"next poll in {state.get('next_poll_s', 60)}s",
+            i18n.t("phase.report", lang),
+            i18n.t(
+                "report.summary", lang,
+                total=total, live=live, cached=total - live,
+                n=len(t.apis_touched()), ms=f"{t.elapsed_ms:.0f}",
+                s=state.get("next_poll_s", 60),
+            ),
         )
         return {}
 
     # -- edges ----------------------------------------------------------------
 
     def _after_assess(self, state: AgentState) -> str:
+        lang = state.get("language", "en")
         a = state["assessment"]
         t = self.tools.trace
         score = a["risk_score"]
         if a.get("escalate_identity_check") or score >= config.THRESHOLDS.escalate_at:
             t.decision(
-                "Escalate to identity verification",
-                f"risk {score:.2f} ≥ {config.THRESHOLDS.escalate_at} "
-                f"or model requested pre-emptive check",
+                i18n.t("assess.escalate", lang),
+                i18n.t("assess.escalate.detail", lang, score=f"{score:.2f}", threshold=config.THRESHOLDS.escalate_at),
             )
             return "verify"
         t.decision(
-            "Continue monitoring",
-            f"risk {score:.2f} below escalation floor "
-            f"{config.THRESHOLDS.escalate_at}; spending no further API budget",
+            i18n.t("assess.continue", lang),
+            i18n.t("assess.continue.detail", lang, score=f"{score:.2f}", threshold=config.THRESHOLDS.escalate_at),
         )
         return "report"
 
     def _after_decide(self, state: AgentState) -> str:
+        lang = state.get("language", "en")
         a = state["assessment"]
         t = self.tools.trace
         allowed = [d for d in state.get("verdict", {}).get("decisions", []) if d.get("allow")]
         if a["risk_score"] >= config.THRESHOLDS.act_at and allowed:
             t.decision(
-                "Proceed to elevation",
-                f"risk {a['risk_score']:.2f} ≥ {config.THRESHOLDS.act_at} "
-                f"and {len(allowed)} responder(s) cleared",
+                i18n.t("decide.proceed", lang),
+                i18n.t(
+                    "decide.proceed.detail", lang,
+                    score=f"{a['risk_score']:.2f}", threshold=config.THRESHOLDS.act_at, n=len(allowed),
+                ),
             )
             return "act"
         reason = (
-            f"risk {a['risk_score']:.2f} below action floor {config.THRESHOLDS.act_at}"
+            i18n.t("decide.hold_low_risk", lang, score=f"{a['risk_score']:.2f}", threshold=config.THRESHOLDS.act_at)
             if a["risk_score"] < config.THRESHOLDS.act_at
-            else "no responder cleared the identity gate"
+            else i18n.t("decide.hold_none_cleared", lang)
         )
-        t.decision("Hold — no elevation", reason)
+        t.decision(i18n.t("decide.hold", lang), reason)
         return "report"
 
     # -- build ----------------------------------------------------------------
@@ -293,8 +347,9 @@ class Sakina:
 
     # -- run ------------------------------------------------------------------
 
-    def cycle(self, zone_id: str, trace: Trace | None = None) -> tuple[AgentState, Trace]:
+    def cycle(self, zone_id: str, trace: Trace | None = None, language: str = "en") -> tuple[AgentState, Trace]:
         t = trace or Trace()
         self.tools.bind(t)
-        state = self.graph.invoke({"zone_id": zone_id, "apis_used": []})
+        self.tools.language = language
+        state = self.graph.invoke({"zone_id": zone_id, "apis_used": [], "language": language})
         return state, t

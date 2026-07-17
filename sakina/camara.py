@@ -16,7 +16,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any, Callable
 
-from . import config
+from . import config, i18n
 from .trace import Source, Trace
 
 FIXTURE_DIR = Path(__file__).resolve().parent.parent / "fixtures"
@@ -104,6 +104,7 @@ class CamaraTools:
         self.trace = trace or Trace()
         self.mode: config.Mode = mode or config.MODE
         self._client = _build_client() if self.mode != "replay" else None
+        self.language: str = "en"  # set by agent.py::cycle() per call, "en" | "ar"
 
     def bind(self, trace: Trace) -> "CamaraTools":
         self.trace = trace
@@ -134,7 +135,7 @@ class CamaraTools:
                 _as_payload(data),
                 Source.CACHE,
                 (time.perf_counter() - t0) * 1000,
-                detail="replay mode — recorded response",
+                detail=i18n.t("api.replay_detail", self.language),
             )
             return data
 
@@ -149,17 +150,17 @@ class CamaraTools:
         except Exception as exc:
             dt = (time.perf_counter() - t0) * 1000
             if self.mode == "live":
-                self.trace.error(f"{api} failed", f"{type(exc).__name__}: {exc}")
+                self.trace.error(i18n.t("api.call_failed", self.language, api=api), f"{type(exc).__name__}: {exc}")
                 raise
             # hybrid: the guide's rule — degrade, never die mid-demo.
             self.trace.degrade(
-                f"{api} unavailable",
-                f"{type(exc).__name__}: {exc} — serving recorded response",
+                i18n.t("api.call_unavailable", self.language, api=api),
+                i18n.t("api.degrade_detail", self.language, err=f"{type(exc).__name__}: {exc}"),
             )
             data = load_fixture(fixture)
             self.trace.api_call(
                 api, label, _as_payload(data), Source.CACHE, dt,
-                detail="fallback after live failure",
+                detail=i18n.t("api.fallback_detail", self.language),
             )
             return data
 
@@ -175,7 +176,7 @@ class CamaraTools:
         now = datetime.now(timezone.utc)
         return self._invoke(
             "congestion_insights.query",
-            f"Congestion · {device.label}",
+            i18n.t("api.congestion", self.language, label=device.label),
             f"congestion_{device.phone_number}",
             lambda: self._client.congestion_insights.query(
                 device=device.as_camara_device(with_ip=True),
@@ -189,7 +190,7 @@ class CamaraTools:
     def locate(self, device: config.Device, max_age: int = 60) -> dict:
         return self._invoke(
             "location.retrieve",
-            f"Locate · {device.label}",
+            i18n.t("api.locate", self.language, label=device.label),
             f"location_{device.phone_number}",
             lambda: self._client.location.retrieve(
                 device=device.as_camara_device(), max_age=max_age
@@ -201,7 +202,7 @@ class CamaraTools:
     ) -> dict:
         return self._invoke(
             "location.verify",
-            f"Verify {device.label} in {zone.name}",
+            i18n.t("api.verify", self.language, label=device.label, zone=zone.name),
             f"locverify_{device.phone_number}",
             lambda: self._client.location.verify(
                 device=device.as_camara_device(),
@@ -216,7 +217,7 @@ class CamaraTools:
         """Reachable + connectivity classes. SMS-only is a network-stress tell."""
         return self._invoke(
             "device_status.retrieve_reachability_status",
-            f"Reachability · {device.label}",
+            i18n.t("api.reachability", self.language, label=device.label),
             f"reach_{device.phone_number}",
             lambda: self._client.device_status.retrieve_reachability_status(
                 device=device.as_camara_device()
@@ -226,7 +227,7 @@ class CamaraTools:
     def roaming(self, device: config.Device) -> dict:
         return self._invoke(
             "device_status.retrieve_roaming_status",
-            f"Roaming · {device.label}",
+            i18n.t("api.roaming", self.language, label=device.label),
             f"roam_{device.phone_number}",
             lambda: self._client.device_status.retrieve_roaming_status(
                 device=device.as_camara_device()
@@ -239,7 +240,7 @@ class CamaraTools:
         h = max_age_h or config.THRESHOLDS.sim_swap_window_h
         return self._invoke(
             "sim_swap.check",
-            f"SIM swap check · {device.label}",
+            i18n.t("api.simswap_check", self.language, label=device.label),
             f"simswap_{device.phone_number}",
             lambda: self._client.sim_swap.check(
                 phone_number=device.phone_number, max_age=h * 60
@@ -249,7 +250,7 @@ class CamaraTools:
     def sim_swap_date(self, device: config.Device) -> dict:
         return self._invoke(
             "sim_swap.retrieve_date",
-            f"SIM swap date · {device.label}",
+            i18n.t("api.simswap_date", self.language, label=device.label),
             f"simswapdate_{device.phone_number}",
             lambda: self._client.sim_swap.retrieve_date(
                 phone_number=device.phone_number
@@ -288,27 +289,27 @@ class CamaraTools:
         dur = duration or config.THRESHOLDS.qod_duration_s
         return self._invoke(
             "qod.create_session",
-            f"QoD elevate · {device.label}",
+            i18n.t("api.qod_elevate", self.language, label=device.label),
             f"qod_{device.phone_number}",
             lambda: self._create_qod_session(device, dur),
         )
 
     def release_qod(self, session_id: str) -> None:
         if self._client is None or self.mode == "replay":
-            self.trace.action("QoD release (replay)", session_id)
+            self.trace.action(i18n.t("api.qod_release_replay", self.language), session_id)
             return
         try:
             self._client.qod.delete_session(session_id)
-            self.trace.action("QoD released", session_id)
+            self.trace.action(i18n.t("api.qod_released", self.language), session_id)
         except Exception as exc:
-            self.trace.error("QoD release failed", str(exc))
+            self.trace.error(i18n.t("api.qod_release_failed", self.language), str(exc))
 
     # -- Geofencing -----------------------------------------------------------
 
     def geofences(self) -> list[dict]:
         return self._invoke(
             "geofencing.list_subscriptions",
-            "Geofence subscriptions",
+            i18n.t("api.geofences", self.language),
             "geofences",
             lambda: self._client.geofencing.list_subscriptions(),
         )
@@ -321,7 +322,7 @@ class CamaraTools:
         """
         return self._invoke(
             "geofencing.create_subscription",
-            f"Watch {zone.name} · {device.label}",
+            i18n.t("api.watch_zone", self.language, zone=zone.name, label=device.label),
             f"geofence_{device.phone_number}",
             lambda: self._client.geofencing.create_subscription(
                 protocol="HTTP",
