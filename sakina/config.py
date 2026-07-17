@@ -19,11 +19,17 @@ GEMINI_API_KEY = os.getenv("GEMINI_API_KEY", "")
 GROQ_API_KEY = os.getenv("GROQ_API_KEY", "")
 
 # --- Models ------------------------------------------------------------------
-# Primary: Gemini 2.5 Flash (free tier, generous limits).
+# Primary: Gemini Flash-Lite (free tier). "gemini-2.5-flash" (the guide's named
+# choice) 404s outright for new API keys — "no longer available to new users" —
+# despite still appearing in ListModels. gemini-2.0-flash is listed and callable
+# but its free-tier quota was already exhausted (429) on first use; gemini-2.5-
+# flash-lite is blocked the same way as 2.5-flash. gemini-flash-lite-latest is
+# the one that actually answers generateContent calls reliably (2/2 live calls).
+# Still Gemini, still Google AI Studio free tier — Guide §3 compliant.
+# Verified 2026-07-16.
 # Fallback: Groq Llama (free tier, fast) — used when Gemini rate-limits.
-# Both are on the approved Resource & Tooling Guide list.
 
-PRIMARY_MODEL = "gemini-2.5-flash"
+PRIMARY_MODEL = "gemini-flash-lite-latest"
 FALLBACK_MODEL = "llama-3.3-70b-versatile"
 
 # --- Operating mode ----------------------------------------------------------
@@ -91,10 +97,17 @@ class Device:
     def as_camara_device(self, with_ip: bool = False) -> dict:
         d: dict = {"phone_number": self.phone_number}
         if with_ip:
-            d["ipv4_address"] = {
-                "public_address": self.public_address,
-                "private_address": self.private_address,
-                "public_port": self.public_port,
+            # Key must be exactly "ipv4address" (no underscore) — that's the
+            # attr name the SDK's TypedDict aliases to "ipv4Address" on write;
+            # "ipv4_address" doesn't match and passes through unconverted,
+            # which the API then rejects as a missing field. The nested dict
+            # is typed `Any` server-side (no per-field conversion), so those
+            # keys must already be camelCase. Verified 2026-07-17 against a
+            # QoD create_session 422 ("Application IP address is missing").
+            d["ipv4address"] = {
+                "publicAddress": self.public_address,
+                "privateAddress": self.private_address,
+                "publicPort": self.public_port,
             }
         return d
 

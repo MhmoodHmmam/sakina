@@ -145,6 +145,27 @@ client.geofencing.create_subscription(protocol="HTTP", sink=url, types=[...], co
 - Geofencing returns `[]` when empty — an empty list, not an error.
 - Geofencing + Congestion subscriptions require a public `sink` URL (webhook).
   **The agent polls instead.** A solo demo cannot depend on inbound webhooks.
+- **Device/application-server IP dict key is `ipv4address` (no underscore),
+  not `ipv4_address`.** The SDK's TypedDict aliases the attr name `ipv4address`
+  to wire `ipv4Address`; a dict key of `ipv4_address` doesn't match, so it
+  passes through unconverted and the live API rejects it as a missing field
+  (422, "Application IP address is missing" — looks like a payload-shape
+  problem, is actually a key-spelling problem). The device's nested IP object
+  (`{"ipv4address": {...}}`) is typed `Any` server-side, so *its* inner keys
+  get zero auto-conversion and must already be camelCase:
+  `publicAddress`/`privateAddress`/`publicPort`. `application_server`'s
+  `ipv4address` value is a plain string, not nested. `config.Device
+  .as_camara_device()` implements this correctly — verified live 2026-07-17
+  against a real `qod.create_session` 422, then a real 201.
+- **`qod.create_session` response parsing breaks even on success.** The SDK's
+  response model types `startedAt`/`expiresAt` as `int` (epoch); the live API
+  returns ISO8601 strings. The HTTP call succeeds (a real session is created —
+  verified: got a real `sessionId`, confirmed released after) but the SDK then
+  raises `network_as_code.core.parse_error.ParsingError` trying to validate
+  the response. **Don't let this orphan a live session** — `ParsingError.body`
+  carries the raw, valid JSON; catch it and use that instead of the parsed
+  model. `camara.py`'s `_create_qod_session()` implements this. Verified live
+  2026-07-17.
 
 ### Simulator numbers
 
@@ -249,22 +270,33 @@ handing an impersonator priority spectrum is not.
 - ✅ LangGraph agent executes end-to-end: 14 calls, 5 API families
 - ✅ 21 tests passing on the confidence-weighting core
 - ✅ Streamlit console renders the live trace
-- ⬜ **Replay mode currently broken — no `fixtures/*.json` exist on disk.**
-  `camara.py`'s `FIXTURE_DIR` resolves fine but the directory has no recorded
-  responses yet; `replay`/`hybrid` fallback will `FileNotFoundError`. Re-record
-  from live once S1.1 output is trusted (`save_fixture` already wired via
-  `_invoke(..., record=True)`).
+- ✅ **Replay mode fixed (2026-07-17).** `fixtures/*.json` recorded from live
+  calls covering everything `agent.cycle()` actually touches: congestion,
+  location, reachability for both sensors; sim_swap (check + date), roaming,
+  location.verify, reachability for both responders; one QoD create_session
+  (on the clean device, released immediately after). Geofencing has no fixture
+  yet — it isn't wired into the cycle until Stage 3. `SAKINA_MODE=replay
+  python run_cycle.py jamarat-bridge` runs end-to-end with zero credentials.
 - ✅ Idea Capture .docx drafted (needs name/team/contact)
 - ✅ **S1.1 done (2026-07-16): live Nokia NaC verified with a real RapidAPI
   key.** 3/7 APIs exercised live (congestion_insights, location, device_status)
   via `run_cycle.py jamarat-bridge`. Root cause of the initial 404s was a
   missing/wrong `rapidapi_host` constructor arg — see Auth section above, fixed
   in `camara.py`.
-- 🟡 **S1.2 in progress: real LLM output seen, but primary provider is dead.**
-  `gemini-2.5-flash` 404s — "no longer available to new users." Groq fallback
-  fired automatically and produced valid, evidence-grounded reasoning (cited
-  actual confidence/congestion numbers). `config.PRIMARY_MODEL` needs a live
-  Gemini model id before Gemini can be exercised as primary.
+- ✅ **QoD elevation verified live (2026-07-17).** Real session created and
+  released against the clean device (+99999991001). Two bugs fixed along the
+  way — the `ipv4address` key-spelling issue and the `ParsingError` response
+  bug — both documented in Payload shapes above.
+- ✅ **S1.2 model fixed (2026-07-17): `PRIMARY_MODEL` now
+  `gemini-flash-lite-latest`.** `gemini-2.5-flash` and `gemini-2.5-flash-lite`
+  both 404 for new API keys ("no longer available to new users") despite still
+  appearing in `ListModels`; `gemini-2.0-flash` is listed and callable but its
+  free-tier quota was already exhausted (429) on first use. Live cycle now
+  produces evidence-grounded reasoning via Gemini directly (no fallback
+  needed) — cited real confidence/congestion numbers, correctly read a
+  falling-congestion + improving-confidence window as genuine dispersal.
+  Groq fallback path separately confirmed working (fired automatically before
+  this fix, valid output).
 - ⬜ Pitch deck, architecture diagram, demo video
 
 ## Conventions

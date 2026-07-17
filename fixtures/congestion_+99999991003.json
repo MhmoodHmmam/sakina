@@ -1,0 +1,26 @@
+[
+  {
+    "time_interval_start": "2026-07-17 12:20:27.896114+00:00",
+    "time_interval_stop": "2026-07-17 12:25:27.896114+00:00",
+    "congestion_level": "Low",
+    "confidence_level": 76
+  },
+  {
+    "time_interval_start": "2026-07-17 12:15:27.896114+00:00",
+    "time_interval_stop": "2026-07-17 12:20:27.896114+00:00",
+    "congestion_level": "Medium",
+    "confidence_level": 40
+  },
+  {
+    "time_interval_start": "2026-07-17 12:10:27.896114+00:00",
+    "time_interval_stop": "2026-07-17 12:15:27.896114+00:00",
+    "congestion_level": "High",
+    "confidence_level": 63
+  },
+  {
+    "time_interval_start": "2026-07-17 12:05:27.896114+00:00",
+    "time_interval_stop": "2026-07-17 12:10:27.896114+00:00",
+    "congestion_level": "Medium",
+    "confidence_level": 14
+  }
+]

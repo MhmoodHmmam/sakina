@@ -1,0 +1,14 @@
+{
+  "device": {
+    "phone_number": "+99999991000",
+    "network_access_identifier": null,
+    "ipv4address": null,
+    "ipv6address": null
+  },
+  "last_status_time": "2026-07-17 12:25:28.605849+00:00",
+  "roaming": true,
+  "country_code": 36,
+  "country_name": [
+    "HU"
+  ]
+}

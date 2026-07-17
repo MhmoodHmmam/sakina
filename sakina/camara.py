@@ -258,6 +258,29 @@ class CamaraTools:
 
     # -- QoD ------------------------------------------------------------------
 
+    def _create_qod_session(self, device: config.Device, dur: int) -> Any:
+        """Create the session, tolerating a known SDK<->API schema mismatch.
+
+        The live API returns startedAt/expiresAt as ISO8601 strings; the SDK's
+        generated response model expects int (epoch). The HTTP call succeeds
+        (a real session is created) but client-side response parsing then
+        raises ParsingError — which would otherwise look like the whole call
+        failed. ParsingError.body carries the raw, valid JSON, so recover from
+        it rather than losing (and orphaning) a session that was actually
+        created. Verified live 2026-07-17.
+        """
+        from network_as_code.core.parse_error import ParsingError
+
+        try:
+            return self._client.qod.create_session(
+                device=device.as_camara_device(with_ip=True),
+                application_server={"ipv4address": "8.8.8.8"},
+                qos_profile=config.THRESHOLDS.qod_profile,
+                duration=dur,
+            )
+        except ParsingError as exc:
+            return exc.body
+
     def elevate_qod(
         self, device: config.Device, duration: int | None = None
     ) -> dict:
@@ -267,12 +290,7 @@ class CamaraTools:
             "qod.create_session",
             f"QoD elevate · {device.label}",
             f"qod_{device.phone_number}",
-            lambda: self._client.qod.create_session(
-                device=device.as_camara_device(with_ip=True),
-                application_server={"ipv4_address": "8.8.8.8"},
-                qos_profile=config.THRESHOLDS.qod_profile,
-                duration=dur,
-            ),
+            lambda: self._create_qod_session(device, dur),
         )
 
     def release_qod(self, session_id: str) -> None:

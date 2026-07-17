@@ -1,0 +1,19 @@
+{
+  "qosProfile": "DOWNLINK_M_UPLINK_L",
+  "device": {
+    "phoneNumber": "+99999991001",
+    "ipv4Address": {
+      "publicAddress": "233.252.0.2",
+      "privateAddress": "192.0.2.25",
+      "publicPort": 80
+    }
+  },
+  "applicationServer": {
+    "ipv4Address": "8.8.8.8"
+  },
+  "sessionId": "1ffa29e9-2c90-42c9-9591-6332632eccdf",
+  "qosStatus": "REQUESTED",
+  "startedAt": "2026-07-17T12:28:52.300517Z",
+  "expiresAt": "2026-07-17T12:33:52.300520Z",
+  "duration": 300
+}

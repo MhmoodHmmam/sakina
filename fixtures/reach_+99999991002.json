@@ -1,0 +1,14 @@
+{
+  "device": {
+    "phone_number": "+99999991002",
+    "network_access_identifier": null,
+    "ipv4address": null,
+    "ipv6address": null
+  },
+  "last_status_time": "2026-07-17 12:25:27.760777+00:00",
+  "reachable": true,
+  "connectivity": [
+    "SMS",
+    "DATA"
+  ]
+}

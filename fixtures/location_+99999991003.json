@@ -1,0 +1,11 @@
+{
+  "last_location_time": "2026-07-17 12:25:28.053273+00:00",
+  "area": {
+    "area_type": "CIRCLE",
+    "center": {
+      "latitude": 47.48627616952785,
+      "longitude": 19.07915612501993
+    },
+    "radius": 1000
+  }
+}
