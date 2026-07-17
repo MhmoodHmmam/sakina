@@ -271,6 +271,43 @@ model still only ever reasons about one zone at a time, inside `agent.cycle()`.
 `app.py` calls `scheduler.pick_next_zone()` and logs the rationale as a
 `trace.decision()` entry before the chosen zone's cycle even starts.
 
+## Bilingual (EN/AR) — added 2026-07-17, user requirement (MENA region)
+
+Two independent mechanisms, deliberately not one:
+
+- **`i18n.py`** — deterministic lookup for everything SAKINA itself generates:
+  trace phase/label/detail text (`agent.py`, `camara.py`, `scheduler.py`) and
+  static UI chrome (`app.py`). Every template is tested for EN/AR placeholder
+  parity (`tests/test_i18n.py`) — a mismatched `{placeholder}` name is a
+  silent runtime crash otherwise, not a typo you'd catch reading the diff.
+- **`brain.py`'s Arabic directive** — appended to the system prompt when
+  `language="ar"`, asking Gemini/Groq to answer in Arabic. This is the
+  model's own judgement changing language, not a translation layer over
+  English output. `confidence`/`severity` are explicitly instructed to stay
+  fixed English enum tokens regardless of response language, precisely so
+  `i18n.py`'s display lookup for them stays reliable across both providers.
+
+`evidence_text` built for the model (`signals.py`'s `ZoneEvidence.render()`,
+the DECIDE node's prompt blocks) is deliberately **not** translated — it's
+model input, not something an operator reads directly, and the model already
+reasons about it correctly regardless of its own output language.
+
+**RTL in Streamlit**: full mirroring, via CSS logical properties
+(`border-inline-start`, `margin-inline-start`, `text-align: start`) plus a
+single `direction: rtl` toggle on the app/sidebar containers — not
+conditionally including/excluding whole CSS rule blocks per language.
+**That distinction matters**: an earlier version toggled entire CSS chunks
+on/off with `{"...css..." if RTL else ""}`, and when the condition was
+false the resulting **blank line inside `<style>`** made Streamlit's
+markdown-HTML-passthrough terminate the raw HTML block early — CommonMark
+ends an HTML block at a blank line. Everything after got parsed as a normal
+markdown paragraph and rendered as literal visible CSS text on the page.
+Confirmed live before fixing, not assumed. Logical properties sidestep the
+whole bug class by never needing a rule to disappear, only a property value
+to change. Known accepted limitation: pydeck's map and Streamlit's native
+chart/dataframe internals do not mirror — flagged in the UI itself when
+Arabic is selected.
+
 ## Operating modes
 
 - `live` — Nokia NaC only; raises on failure

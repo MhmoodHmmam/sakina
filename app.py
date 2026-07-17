@@ -7,6 +7,10 @@ this makes it the largest thing on screen.
 The operator does not choose which zone to look at — the agent does, each
 cycle, via scheduler.pick_next_zone(). That choice is itself a trace entry.
 
+Bilingual: the language toggle switches both the static UI chrome and the
+model's own reasoning (brain.py asks Gemini/Groq to answer in Arabic when
+selected — this is not a translation layer bolted on afterwards).
+
     streamlit run app.py
 """
 from __future__ import annotations
@@ -17,7 +21,7 @@ import pandas as pd
 import pydeck as pdk
 import streamlit as st
 
-from sakina import config
+from sakina import config, i18n
 from sakina.agent import Sakina
 from sakina.camara import CamaraTools
 from sakina.scheduler import ZoneStatus, explain, pick_next_zone
@@ -25,39 +29,92 @@ from sakina.trace import EventKind, Source, Trace
 
 st.set_page_config(page_title="SAKINA", page_icon="🕋", layout="wide")
 
-CSS = """
+# --- Language must be known before anything else renders ---------------------
+
+with st.sidebar:
+    lang = st.segmented_control(
+        i18n.t("ui.language", "en") + " / " + i18n.t("ui.language", "ar"),
+        options=["en", "ar"],
+        format_func=lambda v: "English" if v == "en" else "العربية",
+        default="en",
+        required=True,
+        key="language",
+    )
+
+RTL = lang == "ar"
+
+
+def T(key: str, **kwargs) -> str:
+    return i18n.t(key, lang, **kwargs)
+
+
+# --- Design system + RTL -------------------------------------------------------
+# Palette matches the architecture diagram published for this project — one
+# visual language across the technical surfaces (console, diagrams).
+
+CSS = f"""
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
 <style>
-  .stApp { background: #0d1117; }
-  .zone-card {
-    border:1px solid #30363d; border-radius:10px; padding:14px 16px;
-    margin-bottom:10px; background:#161b22;
-  }
-  .zone-card.hot { border-color:#f85149; background:#1d1416; }
-  .zone-card.warm { border-color:#d29922; background:#1c1a13; }
-  .zone-card.chosen { box-shadow: 0 0 0 1px #58a6ff inset; }
-  .zone-name { font-weight:600; font-size:15px; color:#e6edf3; }
-  .zone-meta { font-size:12px; color:#7d8590; margin-top:2px; }
-  .trace-row {
-    border-left:3px solid #30363d; padding:8px 0 8px 14px; margin:2px 0;
-    font-size:13px; color:#c9d1d9;
-  }
-  .trace-row.phase { border-left-color:#58a6ff; font-weight:600; color:#58a6ff;
-    margin-top:14px; text-transform:uppercase; letter-spacing:.6px; font-size:12px; }
-  .trace-row.api { border-left-color:#3fb950; font-family:ui-monospace,monospace; font-size:12px; }
-  .trace-row.api.cache { border-left-color:#8957e5; }
-  .trace-row.thought { border-left-color:#d29922; background:#1c1a13;
-    border-radius:0 6px 6px 0; padding:10px 12px; }
-  .trace-row.decision { border-left-color:#58a6ff; background:#0f1620;
-    border-radius:0 6px 6px 0; padding:10px 12px; font-weight:500; }
-  .trace-row.action { border-left-color:#f85149; background:#1d1416;
-    border-radius:0 6px 6px 0; padding:10px 12px; font-weight:600; }
-  .trace-row.degrade { border-left-color:#d29922; color:#d29922; font-size:12px; }
-  .trace-detail { color:#8b949e; font-size:12px; margin-top:5px; line-height:1.55; }
-  .badge { display:inline-block; padding:1px 7px; border-radius:9px; font-size:10px;
-    font-weight:600; margin-left:6px; letter-spacing:.4px; }
-  .badge.live { background:#238636; color:#fff; }
-  .badge.cache { background:#8957e5; color:#fff; }
-  .risk { font-size:40px; font-weight:700; line-height:1; }
+  :root {{
+    --bg: #0b1412;
+    --panel: #101b18;
+    --panel-2: #0d1815;
+    --ink: #e7f1ec;
+    --muted: #8fa69d;
+    --accent: #3fd8c4;
+    --ok: #4cc38a;
+    --warn: #e8a33d;
+    --danger: #e2574c;
+    --rule: rgba(143, 166, 157, 0.22);
+    --sans: 'IBM Plex Sans Arabic', -apple-system, 'Segoe UI', sans-serif;
+    --mono: 'IBM Plex Mono', 'Cascadia Code', Consolas, monospace;
+  }}
+  html, body, .stApp, [data-testid="stAppViewContainer"] {{
+    background: var(--bg) !important;
+    font-family: var(--sans);
+    direction: {"rtl" if RTL else "ltr"};
+  }}
+  [data-testid="stSidebar"] {{ background: var(--panel-2); direction: {"rtl" if RTL else "ltr"}; }}
+  h1, h2, h3, h4, p, span, div, label {{ font-family: var(--sans); }}
+  code, .mono {{ font-family: var(--mono) !important; }}
+  .masthead {{ border-bottom: 1px solid var(--rule); padding-bottom: 14px; margin-bottom: 6px; }}
+  .masthead .eyebrow {{ font-family: var(--mono); font-size: 12px; letter-spacing: 0.12em;
+    text-transform: uppercase; color: var(--accent); }}
+  .masthead h1 {{ color: var(--ink); font-size: 26px; font-weight: 600; margin: 4px 0 6px; }}
+  .masthead .sub {{ color: var(--muted); font-size: 13.5px; max-width: 70ch; line-height: 1.55; }}
+  .zone-card {{
+    border: 1px solid var(--rule); border-radius: 10px; padding: 14px 16px;
+    margin-bottom: 10px; background: var(--panel);
+  }}
+  .zone-card.hot {{ border-color: var(--danger); background: #1d1416; }}
+  .zone-card.warm {{ border-color: var(--warn); background: #1c1a13; }}
+  .zone-card.chosen {{ box-shadow: 0 0 0 1px var(--accent) inset; }}
+  .zone-name {{ font-weight: 600; font-size: 15px; color: var(--ink); }}
+  .zone-meta {{ font-size: 12px; color: var(--muted); margin-top: 2px; }}
+  .trace-row {{
+    border-inline-start: 3px solid var(--rule); padding: 8px 14px;
+    margin: 2px 0; font-size: 13px; color: var(--ink); text-align: start;
+  }}
+  .trace-row.phase {{ border-inline-start-color: var(--accent); font-weight: 600;
+    color: var(--accent); margin-top: 14px; text-transform: uppercase; letter-spacing: 0.05em; font-size: 12px; }}
+  .trace-row.api {{ border-inline-start-color: var(--ok); font-family: var(--mono); font-size: 12px; }}
+  .trace-row.api.cache {{ border-inline-start-color: #8957e5; }}
+  .trace-row.thought {{ border-inline-start-color: var(--warn); background: var(--panel);
+    border-start-end-radius: 6px; border-end-end-radius: 6px; padding: 10px 12px; }}
+  .trace-row.decision {{ border-inline-start-color: var(--accent); background: var(--panel-2);
+    border-start-end-radius: 6px; border-end-end-radius: 6px; padding: 10px 12px; font-weight: 500; }}
+  .trace-row.action {{ border-inline-start-color: var(--danger); background: #1d1416;
+    border-start-end-radius: 6px; border-end-end-radius: 6px; padding: 10px 12px; font-weight: 600; }}
+  .trace-row.degrade {{ border-inline-start-color: var(--warn); color: var(--warn); font-size: 12px; }}
+  .trace-detail {{ color: var(--muted); font-size: 12px; margin-top: 5px; line-height: 1.6; }}
+  .badge {{ display: inline-block; padding: 1px 7px; border-radius: 9px; font-size: 10px;
+    font-weight: 600; margin-inline-start: 6px; letter-spacing: 0.4px; font-family: var(--mono); }}
+  .badge.live {{ background: var(--ok); color: #04211a; }}
+  .badge.cache {{ background: #8957e5; color: #fff; }}
+  .risk {{ font-size: 38px; font-weight: 700; line-height: 1; font-family: var(--mono); }}
+  .rtl-note {{ color: var(--muted); font-size: 11px; font-style: italic; margin-top: 4px; }}
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
@@ -91,7 +148,8 @@ def render_trace(trace: Trace) -> str:
         head = f"{glyph[e.kind]} {e.label}".strip()
         if e.api:
             tag = "live" if e.source is Source.LIVE else "cache"
-            head += (f'<span class="badge {tag}">{tag.upper()}</span>'
+            badge_text = T("ui.badge_live") if tag == "live" else T("ui.badge_cache")
+            head += (f'<span class="badge {tag}">{badge_text}</span>'
                      f'<span style="color:#6e7681;font-size:11px"> {e.latency_ms:.0f}ms</span>')
         block = f'<div class="trace-row {klass}">{head}'
         if e.detail:
@@ -106,10 +164,10 @@ def risk_color(score: float | None) -> list[int]:
     if score is None:
         return [88, 96, 105, 160]  # muted grey — never polled yet
     if score >= config.THRESHOLDS.act_at:
-        return [248, 81, 73, 220]  # hot
+        return [226, 87, 76, 220]  # hot
     if score >= config.THRESHOLDS.escalate_at:
-        return [210, 153, 34, 220]  # warm
-    return [63, 185, 80, 200]  # calm
+        return [232, 163, 61, 220]  # warm
+    return [76, 195, 138, 200]  # calm
 
 
 def zone_map_df(statuses: dict[str, ZoneStatus]) -> pd.DataFrame:
@@ -123,7 +181,7 @@ def zone_map_df(statuses: dict[str, ZoneStatus]) -> pd.DataFrame:
             "lat": z.latitude,
             "lon": z.longitude,
             "risk": risk if risk is not None else -1,
-            "risk_label": f"{risk:.2f}" if risk is not None else "not yet polled",
+            "risk_label": f"{risk:.2f}" if risk is not None else T("ui.never_polled"),
             "radius": max(z.radius_m, 150),
             "color": risk_color(risk),
         })
@@ -142,43 +200,42 @@ if "cycle_n" not in st.session_state:
 # --- Sidebar -----------------------------------------------------------------
 
 with st.sidebar:
-    st.markdown("### 🕋 SAKINA")
-    st.caption("Situational Awareness for Kinetic crowd Intelligence & Network Adaptation")
-    st.markdown("---")
+    st.markdown(
+        f'<div class="masthead"><div class="eyebrow">GSMA MENA Ignite · Theme 3</div>'
+        f'<h1>🕋 SAKINA</h1><div class="sub">{T("ui.brand_sub")}</div></div>',
+        unsafe_allow_html=True,
+    )
     mode = st.radio(
-        "Data source",
+        T("ui.data_source"),
         ["hybrid", "live", "replay"],
         index=0,
-        help="hybrid: try Nokia NaC, fall back to recorded responses. "
-             "replay: recorded only — guaranteed to run.",
+        format_func=lambda v: T(f"ui.mode.{v}"),
+        help=T("ui.data_source_help"),
     )
-    st.caption(
-        "The agent picks which zone to look at next — see **Multi-zone "
-        "monitoring** below. Nothing here is operator-triggered."
-    )
+    st.caption(T("ui.autonomy_note"))
     st.markdown("---")
     agent = get_agent(mode)
-    st.caption(
-        f"Nokia NaC: {'🟢 connected' if agent.tools.live_available else '🟣 replay only'}"
-    )
-    st.caption(f"Model: {config.PRIMARY_MODEL} → {config.FALLBACK_MODEL}")
-    run = st.button("▶ Run next cycle — agent picks the zone", type="primary", width="stretch")
-    if st.button("Reset monitoring state", width="stretch"):
+    st.caption(T("ui.nac_connected") if agent.tools.live_available else T("ui.nac_replay_only"))
+    st.caption(T("ui.model_label", primary=config.PRIMARY_MODEL, fallback=config.FALLBACK_MODEL))
+    run = st.button(T("ui.run_button"), type="primary", width="stretch")
+    if st.button(T("ui.reset_button"), width="stretch"):
         st.session_state["zone_status"] = {z.id: ZoneStatus(zone_id=z.id) for z in config.ZONES}
         st.session_state["history"] = []
         st.session_state["cycle_n"] = 0
         st.rerun()
     st.markdown("---")
-    st.caption("**CAMARA APIs orchestrated**")
-    for a in ["Congestion Insights", "Location Retrieval", "Location Verification",
-              "Device Status", "SIM Swap", "Quality on Demand", "Geofencing"]:
-        st.caption(f"· {a}")
+    st.caption(f"**{T('ui.apis_header')}**")
+    for key in ["congestion", "location_retrieval", "location_verification",
+                "device_status", "sim_swap", "qod", "geofencing"]:
+        st.caption(f"· {T(f'ui.api.{key}')}")
+    if RTL:
+        st.markdown(f'<div class="rtl-note">{T("ui.rtl_note")}</div>', unsafe_allow_html=True)
 
 
-st.markdown("## Pilgrimage Crowd Safety — Agent Console")
-st.caption(
-    "The agent decides when to look, what to check, and whether to act. "
-    "No operator input triggers a network change."
+st.markdown(
+    f'<div class="masthead"><h1 style="font-size:28px">{T("ui.console_title")}</h1>'
+    f'<div class="sub">{T("ui.console_sub")}</div></div>',
+    unsafe_allow_html=True,
 )
 
 left, right = st.columns([1, 1.6])
@@ -188,14 +245,14 @@ left, right = st.columns([1, 1.6])
 if run:
     statuses = st.session_state["zone_status"]
     chosen = pick_next_zone(statuses)
-    rationale = explain(statuses, chosen)
+    rationale = explain(statuses, chosen, language=lang)
     zone_name = config.ZONES_BY_ID[chosen].name
 
     trace = Trace()
-    trace.decision(f"Multi-zone scheduler → {zone_name}", rationale)
+    trace.decision(T("scheduler.chosen", zone=zone_name), rationale)
 
-    with st.spinner(f"Agent working on {zone_name}…"):
-        state, trace = agent.cycle(chosen, trace)
+    with st.spinner(f"{zone_name}…"):
+        state, trace = agent.cycle(chosen, trace, language=lang)
 
     a = state["assessment"]
     now = datetime.now(timezone.utc)
@@ -228,7 +285,7 @@ if run:
 # --- Zones + map ---------------------------------------------------------------
 
 with left:
-    st.markdown("#### Zones — multi-zone monitoring")
+    st.markdown(f"#### {T('ui.zones_header')}")
     statuses = st.session_state["zone_status"]
 
     df = zone_map_df(statuses)
@@ -259,50 +316,53 @@ with left:
                 " warm" if score >= config.THRESHOLDS.escalate_at else "")
         if st.session_state.get("assessment_zone") == z.name:
             klass += " chosen"
-        badge = f"<b style='color:#e6edf3'>{score:.2f}</b>" if score is not None else "<span style='color:#484f58'>—</span>"
-        due = f"next due ~{s.next_poll_s}s after last poll" if s and s.last_polled else "never polled"
+        badge = f"<b style='color:var(--ink)'>{score:.2f}</b>" if score is not None else "<span style='color:var(--muted)'>—</span>"
+        due = T("ui.next_due", s=s.next_poll_s) if s and s.last_polled else T("ui.never_polled")
         st.markdown(
             f"""<div class="{klass}">
                 <div style="display:flex;justify-content:space-between;align-items:baseline">
                   <span class="zone-name">{z.name}</span>{badge}
                 </div>
-                <div class="zone-meta">criticality {z.criticality}/5 · capacity {z.capacity:,} · {due}</div>
+                <div class="zone-meta">{T("ui.zone_meta", crit=z.criticality, cap=f"{z.capacity:,}", due=due)}</div>
             </div>""",
             unsafe_allow_html=True,
         )
 
     if "assessment" in st.session_state:
         a = st.session_state["assessment"]
-        st.markdown(f"#### Current reading — {st.session_state.get('assessment_zone', '')}")
+        st.markdown(f"#### {T('ui.current_reading', zone=st.session_state.get('assessment_zone', ''))}")
         st.markdown(
-            f'<div class="risk" style="color:{"#f85149" if a["risk_score"]>=0.7 else "#d29922" if a["risk_score"]>=0.55 else "#3fb950"}">'
+            f'<div class="risk" style="color:{"var(--danger)" if a["risk_score"]>=0.7 else "var(--warn)" if a["risk_score"]>=0.55 else "var(--ok)"}">'
             f'{a["risk_score"]:.2f}</div>'
-            f'<div style="color:#7d8590;font-size:12px;margin-bottom:8px">'
-            f'{a["confidence"]} confidence · via {a["model"]}</div>',
+            f'<div style="color:var(--muted);font-size:12px;margin-bottom:8px">'
+            f'{T("ui.confidence_via", confidence=i18n.confidence_label(a["confidence"], lang), model=a["model"])}</div>',
             unsafe_allow_html=True,
         )
         st.info(a["reading"])
         if a.get("contradictions"):
-            st.warning("**Contradictions:** " + "; ".join(a["contradictions"]))
+            st.warning(T("ui.contradictions_label", items="; ".join(a["contradictions"])))
 
     if st.session_state["history"]:
-        st.markdown("#### Cycle history")
+        st.markdown(f"#### {T('ui.history_header')}")
         hist_df = pd.DataFrame(st.session_state["history"])
         chart_df = hist_df.pivot_table(
             index="cycle", columns="zone", values="risk_score", aggfunc="last"
         )
         st.line_chart(chart_df, height=180)
-        with st.expander(f"Log ({len(hist_df)} cycles)"):
-            st.dataframe(
-                hist_df[["cycle", "zone", "risk_score", "confidence", "model", "reading"]]
-                .sort_values("cycle", ascending=False),
-                hide_index=True,
-            )
+        with st.expander(T("ui.log_expander", n=len(hist_df))):
+            display_df = hist_df[["cycle", "zone", "risk_score", "confidence", "model", "reading"]].rename(
+                columns={
+                    "cycle": T("ui.col_cycle"), "zone": T("ui.col_zone"),
+                    "risk_score": T("ui.col_risk"), "confidence": T("ui.col_confidence"),
+                    "model": T("ui.col_model"), "reading": T("ui.col_reading"),
+                }
+            ).sort_values(T("ui.col_cycle"), ascending=False)
+            st.dataframe(display_df, hide_index=True)
 
 # --- Trace -------------------------------------------------------------------
 
 with right:
-    st.markdown("#### Agent reasoning")
+    st.markdown(f"#### {T('ui.reasoning_header')}")
     slot = st.empty()
 
     if "last_trace_html" in st.session_state:
@@ -312,11 +372,11 @@ with right:
         apis_n = st.session_state["last_metrics"][1]
         elapsed = st.session_state["last_metrics"][2]
         c1, c2, c3 = st.columns(3)
-        c1.metric("CAMARA calls", total, f"{live} live")
-        c2.metric("APIs orchestrated", apis_n)
-        c3.metric("Cycle time", f"{elapsed:.0f}ms")
+        c1.metric(T("ui.metric_calls"), total, T("ui.metric_calls_live", n=live))
+        c2.metric(T("ui.metric_apis"), apis_n)
+        c3.metric(T("ui.metric_time"), f"{elapsed:.0f}ms")
 
-        with st.expander("Raw trace (JSON)"):
+        with st.expander(T("ui.raw_trace")):
             st.code(st.session_state["last_trace_json"], language="json")
     else:
-        slot.caption("Press **Run next cycle** to watch the agent pick a zone and reason.")
+        slot.caption(T("ui.reasoning_placeholder"))

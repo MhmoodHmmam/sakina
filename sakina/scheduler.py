@@ -11,7 +11,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import datetime, timezone
 
-from . import config
+from . import config, i18n
 
 
 @dataclass
@@ -55,15 +55,17 @@ def pick_next_zone(statuses: dict[str, ZoneStatus], now: datetime | None = None)
     return max(statuses, key=lambda zid: statuses[zid].priority(now))
 
 
-def explain(statuses: dict[str, ZoneStatus], chosen: str, now: datetime | None = None) -> str:
+def explain(
+    statuses: dict[str, ZoneStatus], chosen: str, now: datetime | None = None, language: str = "en"
+) -> str:
     """One-line rationale for the trace — why this zone, not another."""
     now = now or datetime.now(timezone.utc)
     st = statuses[chosen]
     zone = config.ZONES_BY_ID[chosen]
     if st.last_polled is None:
-        return f"never polled — establishing a baseline reading (criticality {zone.criticality}/5)"
+        return i18n.t("scheduler.never_polled", language, crit=zone.criticality)
     elapsed = (now - st.last_polled).total_seconds()
-    return (
-        f"{elapsed:.0f}s since last poll (recommended {st.next_poll_s}s), "
-        f"last risk {st.last_risk:.2f}, criticality {zone.criticality}/5"
+    return i18n.t(
+        "scheduler.overdue", language,
+        elapsed=elapsed, next_s=st.next_poll_s, risk=st.last_risk or 0.0, crit=zone.criticality,
     )
