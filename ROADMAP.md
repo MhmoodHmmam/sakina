@@ -8,6 +8,31 @@ disagrees.
 
 ---
 
+## Stage 3.5 — MENA localization · *added 2026-07-17, user requirement, done same day*
+
+Not on the original plan — added when the user asked for full Arabic/RTL
+support and a professional UI pass, done ahead of the Stage 3 window.
+
+- [x] Bilingual agent core — `brain.py` asks the model to reason in Arabic
+  (not a translation layer), `i18n.py` localizes everything SAKINA itself
+  generates (trace labels, UI chrome), tested for EN/AR placeholder parity.
+- [x] Professional console redesign — dark ops-console palette matching the
+  architecture diagram, IBM Plex Sans Arabic + IBM Plex Mono, full RTL via
+  CSS logical properties. Found and fixed a real bug along the way: a
+  conditional CSS block that evaluated to an empty string left a blank line
+  inside `<style>`, and CommonMark terminates an HTML passthrough block at a
+  blank line — the raw CSS rendered as visible page text. Documented in
+  CLAUDE.md.
+- [x] `SAKINA_Pitch_Deck_AR.pptx` — full Arabic translation, RTL-mirrored
+  reading order for the comparison slide and the agent graph.
+- [x] `README_AR.md` — full translation, cross-linked with `README.md`.
+
+Verified live in both languages: real Nokia NaC calls, real Gemini reasoning
+entirely in fluent Modern Standard Arabic, scheduler rationale, badges,
+metrics all correctly localized.
+
+---
+
 ## Stage 0 — Port into Claude Code · *do this first, ~20 min*
 
 - [x] **S0.1** Create the repo and move the existing code in

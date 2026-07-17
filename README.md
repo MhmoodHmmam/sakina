@@ -1,5 +1,7 @@
 # SAKINA
 
+**English** · [العربية](README_AR.md)
+
 **Situational Awareness for Kinetic crowd Intelligence & Network Adaptation**
 
 An AI agent that reads telecom network signals to detect crowd-crush risk at mass
@@ -98,6 +100,15 @@ agent decides:
 
 Nothing is user-triggered. The operator watches; the agent acts.
 
+### Multi-zone scheduling
+
+The operator doesn't pick which zone to look at either. `scheduler.py` runs
+deterministic priority arithmetic — never-polled zones first (criticality
+breaks ties), then how overdue a zone is scaled by its last risk and
+criticality — and the choice is logged as a trace decision before the cycle
+even starts. Same split as `signals.py`/`brain.py`: this is arithmetic, not
+judgement; the model still only ever reasons about one zone at a time.
+
 ```mermaid
 flowchart TD
     START(["zone poll"]) --> PERCEIVE["PERCEIVE<br/>congestion_insights.query · location.retrieve · device_status.reachability"]
@@ -138,10 +149,22 @@ All components from the hackathon's AI Resource & Tooling Guide:
 | Layer | Choice | Guide § |
 |---|---|---|
 | Orchestration | LangGraph | §2 code-first frameworks |
-| Reasoning | Gemini 2.5 Flash | §3 hosted APIs, free tier |
+| Reasoning | Gemini (`gemini-flash-lite-latest`) | §3 hosted APIs, free tier |
 | Fallback | Groq Llama 3.3 70B | §3 — for rate limits |
 | UI | Streamlit | §6 hosting & deployment |
 | Data | Nokia Network-as-Code | §5 CAMARA trusted data layer |
+
+## Bilingual — English / Arabic
+
+Built for the MENA region: the console's language toggle switches both the
+static UI and the agent's own reasoning — `brain.py` asks Gemini/Groq to
+answer in Arabic when selected, it isn't a translation layer bolted onto
+English output. RTL is a full layout mirror via CSS logical properties
+(`border-inline-start`, `text-align: start`), not just right-aligned text.
+`i18n.py` handles everything SAKINA itself generates (trace labels, UI
+chrome); every string is tested for EN/AR placeholder parity. Known
+limitation: the map and native Streamlit charts/tables keep their internal
+left-to-right rendering — flagged in the UI itself when Arabic is selected.
 
 ## Reliability
 
@@ -168,7 +191,7 @@ the Nokia portal.
 
 ```bash
 python run_cycle.py jamarat-bridge   # headless, prints the reasoning trace
-python -m pytest tests/ -v           # 21 tests on the confidence-weighting core
+python -m pytest tests/ -v           # 49 tests
 ```
 
 ### Credentials
@@ -181,15 +204,17 @@ environment is `network-as-code.p-eu.rapidapi.com`. Get a free Gemini key at
 
 ```
 sakina/
-  config.py    zones, device roster, thresholds
-  trace.py     reasoning trace — the artifact judges watch
-  camara.py    CAMARA tool layer; live/cache/degrade decided in one place
-  signals.py   confidence-weighted interpretation (deterministic, tested)
-  brain.py     LLM reasoning + prompts + provider fallback
-  agent.py     LangGraph StateGraph
-app.py         Streamlit operator console
-tests/         21 tests against real playground payloads
-fixtures/      recorded Nokia NaC responses
+  config.py     zones, device roster, thresholds
+  trace.py      reasoning trace — the artifact judges watch
+  camara.py     CAMARA tool layer; live/cache/degrade decided in one place
+  signals.py    confidence-weighted interpretation (deterministic, tested)
+  scheduler.py  multi-zone priority arithmetic — which zone next (deterministic, tested)
+  i18n.py       EN/AR string lookup for everything SAKINA itself generates
+  brain.py      LLM reasoning + prompts + provider fallback + Arabic directive
+  agent.py      LangGraph StateGraph
+app.py          Streamlit operator console (bilingual, RTL)
+tests/          49 tests against real playground payloads and live-confirmed bugs
+fixtures/       recorded Nokia NaC responses
 ```
 
 `signals.py` does arithmetic; `brain.py` does judgement. The split is deliberate:
