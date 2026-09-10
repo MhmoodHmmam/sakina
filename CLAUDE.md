@@ -271,6 +271,17 @@ model still only ever reasons about one zone at a time, inside `agent.cycle()`.
 `app.py` calls `scheduler.pick_next_zone()` and logs the rationale as a
 `trace.decision()` entry before the chosen zone's cycle even starts.
 
+**Unobservable-zone crash (found 2026-09-10 on the deployed URL):** two zones
+in `config.ZONES` (Mina Camps, Al-Muaisim Tunnel) have no devices assigned —
+they exist for the map and roster. The scheduler still picked them once the
+two observable zones had been polled (never-polled beats everything), and
+`_perceive` did `probes[0]` on an empty list: IndexError, raw traceback in
+the console on a judge's **third click**. `scheduler.observable()` now
+filters candidates to zones with ≥1 device; `_perceive` raises a clear
+ValueError instead of IndexError; `app.py` wraps `agent.cycle()` and renders
+one `Cycle failed — …` callout plus the partial trace rather than a
+traceback. Tested. Zones without a probe read "no probe assigned" in the UI.
+
 ## Bilingual (EN/AR) — added 2026-07-17, user requirement (MENA region)
 
 Two independent mechanisms, deliberately not one:

@@ -65,7 +65,9 @@ class TestOverdueScaling:
         }
         assert pick_next_zone(statuses, now=NOW) == "jamarat-bridge"
 
-    def test_lower_criticality_zone_can_still_lose_even_if_more_overdue(self):
+    def test_lower_criticality_zone_can_still_lose_even_if_more_overdue(self, monkeypatch):
+        from sakina import scheduler
+        monkeypatch.setattr(scheduler, "observable", lambda zid: True)
         # tunnel-al-muaisim (criticality 4) very overdue but low risk vs.
         # jamarat-bridge (criticality 5) moderately overdue and high risk.
         statuses = {
@@ -114,3 +116,24 @@ class TestEmpty:
 
         with pytest.raises(ValueError):
             pick_next_zone({})
+
+
+class TestObservability:
+    def test_never_picks_a_zone_with_no_devices(self):
+        statuses = fresh_statuses()
+        for _ in range(6):
+            chosen = pick_next_zone(statuses, now=NOW)
+            assert config.devices_in_zone(chosen), f"picked unobservable zone {chosen}"
+            statuses[chosen] = ZoneStatus(zone_id=chosen, last_risk=0.2, last_polled=NOW, next_poll_s=60)
+
+    def test_unobservable_zones_are_skipped_even_when_never_polled(self):
+        statuses = fresh_statuses()
+        for zid in ("jamarat-bridge", "street-204"):
+            statuses[zid] = ZoneStatus(zone_id=zid, last_risk=0.1, last_polled=NOW, next_poll_s=60)
+        assert pick_next_zone(statuses, now=NOW) in ("jamarat-bridge", "street-204")
+
+    def test_all_unobservable_raises(self):
+        import pytest
+        statuses = {z: ZoneStatus(zone_id=z) for z in ("mina-camps-a", "tunnel-al-muaisim")}
+        with pytest.raises(ValueError, match="observable"):
+            pick_next_zone(statuses, now=NOW)

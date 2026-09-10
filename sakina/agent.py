@@ -89,7 +89,9 @@ class Sakina:
 
         sensors = config.devices_in_zone(zone.id, "pilgrim_sensor")
         responders = config.devices_in_zone(zone.id, "responder")
-        probes = sensors or responders  # always have something to read
+        probes = sensors or responders
+        if not probes:
+            raise ValueError(f"zone {zone.id} has no assigned devices to observe")
 
         # Congestion is the primary density proxy — read it from the probe.
         congestion = CongestionRead.parse(self.tools.congestion(probes[0]))

@@ -176,6 +176,8 @@ _STRINGS: dict[str, dict[str, str]] = {
     "ui.zones_header": {"en": "Zones — multi-zone monitoring", "ar": "المناطق — مراقبة متعددة المناطق"},
     "ui.zone_meta": {"en": "criticality {crit}/5 · capacity {cap} · {due}",
                       "ar": "الأهمية الحرجة {crit}/5 · السعة {cap} · {due}"},
+    "ui.no_probe": {"en": "no probe assigned", "ar": "لا يوجد جهاز استشعار مخصص"},
+    "ui.cycle_failed": {"en": "Cycle failed — {err}", "ar": "فشلت الدورة — {err}"},
     "ui.never_polled": {"en": "never polled", "ar": "لم يُستطلع بعد"},
     "ui.next_due": {"en": "next due ~{s}s after last poll", "ar": "الاستطلاع التالي خلال ~{s} ثانية تقريبًا"},
     "ui.current_reading": {"en": "Current reading — {zone}", "ar": "القراءة الحالية — {zone}"},

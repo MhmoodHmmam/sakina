@@ -36,3 +36,10 @@ def test_full_cycle_survives_malformed_model_output(monkeypatch):
     # Heuristic fallback must have taken over, and it must say so in the trace.
     assert state["assessment"]["model"] == "heuristic"
     assert any(e.kind is EventKind.DEGRADE for e in trace.events)
+
+
+def test_zone_with_no_devices_raises_clear_error_not_index_error():
+    import pytest
+    agent = Sakina(CamaraTools(mode="replay"))
+    with pytest.raises(ValueError, match="no assigned devices"):
+        agent.cycle("tunnel-al-muaisim")

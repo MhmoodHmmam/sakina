@@ -120,6 +120,7 @@ CSS = f"""
     border-start-end-radius: 6px; border-end-end-radius: 6px; padding: 11px 14px;
     margin: 6px 0 10px; font-size: 13.5px; line-height: 1.6; color: var(--ink); text-align: start; }}
   .callout.contra {{ border-inline-start-color: var(--warn); color: var(--warn); font-size: 12.5px; }}
+  .callout.error {{ border-inline-start-color: var(--danger); color: var(--danger); font-size: 12.5px; }}
   [data-testid="stMetric"] {{ background: var(--panel); border: 1px solid var(--rule);
     border-radius: 10px; padding: 12px 14px; }}
   [data-testid="stMetricLabel"] {{ color: var(--muted) !important; font-size: 12px !important; }}
@@ -255,7 +256,8 @@ def zone_map_df(statuses: dict[str, ZoneStatus]) -> pd.DataFrame:
             "lat": z.latitude,
             "lon": z.longitude,
             "risk": risk if risk is not None else -1,
-            "risk_label": f"{risk:.2f}" if risk is not None else T("ui.never_polled"),
+            "risk_label": f"{risk:.2f}" if risk is not None else (
+                T("ui.never_polled") if config.devices_in_zone(z.id) else T("ui.no_probe")),
             "radius": max(z.radius_m, 150),
             "color": risk_color(risk),
             "fill": risk_color(risk)[:3] + [46],  # same hue, low alpha — zone footprint
@@ -326,8 +328,20 @@ if run:
     trace = Trace()
     trace.decision(T("scheduler.chosen", zone=zone_name), rationale)
 
-    with st.spinner(f"{zone_name}…"):
-        state, trace = agent.cycle(chosen, trace, language=lang)
+    try:
+        with st.spinner(f"{zone_name}…"):
+            state, trace = agent.cycle(chosen, trace, language=lang)
+    except Exception as exc:
+        # Degrade visibly, never crash: keep whatever the trace already holds
+        # (including camara.py's own ERROR entry) and surface one clear line
+        # instead of a Python traceback in front of a judge.
+        msg = T("ui.cycle_failed", err=f"{type(exc).__name__}: {exc}")
+        trace.error(msg, "")
+        st.session_state["last_trace_html"] = render_trace(trace)
+        st.session_state["last_trace_json"] = trace.to_json()
+        st.session_state["last_metrics"] = (trace.live_ratio(), len(trace.apis_touched()), trace.elapsed_ms)
+        st.session_state["cycle_error"] = msg
+        st.rerun()
 
     a = state["assessment"]
     now = datetime.now(timezone.utc)
@@ -431,7 +445,12 @@ with left:
         if st.session_state.get("assessment_zone") == z.name:
             klass += " chosen"
         badge = f"<b style='color:var(--ink)'>{score:.2f}</b>" if score is not None else "<span style='color:var(--muted)'>—</span>"
-        due = T("ui.next_due", s=s.next_poll_s) if s and s.last_polled else T("ui.never_polled")
+        if not config.devices_in_zone(z.id):
+            due = T("ui.no_probe")
+        elif s and s.last_polled:
+            due = T("ui.next_due", s=s.next_poll_s)
+        else:
+            due = T("ui.never_polled")
         st.markdown(
             f"""<div class="{klass}">
                 <div style="display:flex;justify-content:space-between;align-items:baseline">
@@ -462,6 +481,8 @@ with right:
     st.markdown(f"#### {T('ui.reasoning_header')}")
     slot = st.empty()
 
+    if err := st.session_state.pop("cycle_error", None):
+        st.markdown(f'<div class="callout error">{err}</div>', unsafe_allow_html=True)
     if "last_trace_html" in st.session_state:
         slot.markdown(st.session_state["last_trace_html"], unsafe_allow_html=True)
 

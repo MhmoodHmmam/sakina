@@ -47,12 +47,25 @@ class ZoneStatus:
         return overdue_ratio * risk_weight * crit_weight
 
 
+def observable(zone_id: str) -> bool:
+    """A zone the agent can actually perceive — it has at least one device.
+
+    Zones exist in config for the map and the roster even before a probe is
+    assigned to them. The scheduler must never pick one: PERCEIVE reads a
+    probe device, and a zone with none has nothing to read. Found the hard
+    way — the third cycle in a fresh session crashed the console with an
+    IndexError on the deployed URL.
+    """
+    return bool(config.devices_in_zone(zone_id))
+
+
 def pick_next_zone(statuses: dict[str, ZoneStatus], now: datetime | None = None) -> str:
     """The agent's own choice of where to look next — never operator-picked."""
-    if not statuses:
-        raise ValueError("no zones to schedule")
+    candidates = [zid for zid in statuses if observable(zid)]
+    if not candidates:
+        raise ValueError("no observable zones to schedule — no zone has an assigned device")
     now = now or datetime.now(timezone.utc)
-    return max(statuses, key=lambda zid: statuses[zid].priority(now))
+    return max(candidates, key=lambda zid: statuses[zid].priority(now))
 
 
 def explain(
