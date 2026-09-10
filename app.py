@@ -134,7 +134,7 @@ CSS = f"""
   [data-testid="stDataFrame"] {{ border: 1px solid var(--rule); border-radius: 8px; }}
   .stCode, pre {{ background: var(--panel-2) !important; border: 1px solid var(--rule);
     border-radius: 8px; font-family: var(--mono) !important; font-size: 11.5px !important; }}
-  [data-testid="stVegaLiteChart"] {{ background: transparent; }}
+  [data-testid="stVegaLiteChart"] {{ background: transparent; direction: ltr; }}
   hr {{ border-color: var(--rule); }}
   .stSlider, .stRadio label {{ color: var(--ink); }}
 </style>
