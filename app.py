@@ -184,6 +184,7 @@ def zone_map_df(statuses: dict[str, ZoneStatus]) -> pd.DataFrame:
             "risk_label": f"{risk:.2f}" if risk is not None else T("ui.never_polled"),
             "radius": max(z.radius_m, 150),
             "color": risk_color(risk),
+            "fill": risk_color(risk)[:3] + [46],  # same hue, low alpha — zone footprint
         })
     return pd.DataFrame(rows)
 
@@ -285,6 +286,20 @@ if run:
 # --- Zones + map ---------------------------------------------------------------
 
 with left:
+    if "assessment" in st.session_state:
+        a = st.session_state["assessment"]
+        st.markdown(f"#### {T('ui.current_reading', zone=st.session_state.get('assessment_zone', ''))}")
+        st.markdown(
+            f'<div class="risk" style="color:{"var(--danger)" if a["risk_score"]>=0.7 else "var(--warn)" if a["risk_score"]>=0.55 else "var(--ok)"}">'
+            f'{a["risk_score"]:.2f}</div>'
+            f'<div style="color:var(--muted);font-size:12px;margin-bottom:8px">'
+            f'{T("ui.confidence_via", confidence=i18n.confidence_label(a["confidence"], lang), model=a["model"])}</div>',
+            unsafe_allow_html=True,
+        )
+        st.info(a["reading"])
+        if a.get("contradictions"):
+            st.warning(T("ui.contradictions_label", items="; ".join(a["contradictions"])))
+
     st.markdown(f"#### {T('ui.zones_header')}")
     statuses = st.session_state["zone_status"]
 
@@ -293,19 +308,38 @@ with left:
         latitude=float(df["lat"].mean()), longitude=float(df["lon"].mean()),
         zoom=13, pitch=0,
     )
-    layer = pdk.Layer(
+    # Two layers, not one: the footprint carries the zone's true radius in
+    # metres (so the geography stays honest), while the marker is pixel-clamped
+    # so a 600m zone doesn't render as a blob that swallows the basemap.
+    footprint = pdk.Layer(
+        "ScatterplotLayer",
+        data=df,
+        get_position="[lon, lat]",
+        get_fill_color="fill",
+        get_line_color="color",
+        get_radius="radius",
+        stroked=True,
+        filled=True,
+        line_width_min_pixels=1,
+        radius_min_pixels=8,
+        pickable=True,
+    )
+    marker = pdk.Layer(
         "ScatterplotLayer",
         data=df,
         get_position="[lon, lat]",
         get_fill_color="color",
-        get_radius="radius",
+        get_radius=40,
+        radius_min_pixels=5,
+        radius_max_pixels=7,
+        stroked=False,
+        filled=True,
         pickable=True,
-        opacity=0.75,
     )
     st.pydeck_chart(pdk.Deck(
-        layers=[layer], initial_view_state=view, map_style="dark",
+        layers=[footprint, marker], initial_view_state=view, map_style="dark",
         tooltip={"text": "{name}\nrisk: {risk_label}"},
-    ), width="stretch", height=260)
+    ), width="stretch", height=300)
 
     for z in config.ZONES:
         s = statuses.get(z.id)
@@ -327,20 +361,6 @@ with left:
             </div>""",
             unsafe_allow_html=True,
         )
-
-    if "assessment" in st.session_state:
-        a = st.session_state["assessment"]
-        st.markdown(f"#### {T('ui.current_reading', zone=st.session_state.get('assessment_zone', ''))}")
-        st.markdown(
-            f'<div class="risk" style="color:{"var(--danger)" if a["risk_score"]>=0.7 else "var(--warn)" if a["risk_score"]>=0.55 else "var(--ok)"}">'
-            f'{a["risk_score"]:.2f}</div>'
-            f'<div style="color:var(--muted);font-size:12px;margin-bottom:8px">'
-            f'{T("ui.confidence_via", confidence=i18n.confidence_label(a["confidence"], lang), model=a["model"])}</div>',
-            unsafe_allow_html=True,
-        )
-        st.info(a["reading"])
-        if a.get("contradictions"):
-            st.warning(T("ui.contradictions_label", items="; ".join(a["contradictions"])))
 
     if st.session_state["history"]:
         st.markdown(f"#### {T('ui.history_header')}")

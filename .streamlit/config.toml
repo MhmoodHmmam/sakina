@@ -12,3 +12,8 @@ primaryColor = "#3fd8c4"           # --accent (teal); replaces Streamlit's defau
 backgroundColor = "#0b1412"        # --bg
 secondaryBackgroundColor = "#101b18"  # --panel
 textColor = "#e7f1ec"              # --ink
+
+[client]
+# Hide Streamlit's dev chrome (Deploy button, hamburger menu) so the console
+# reads as a product rather than a dev tool when judges open the hosted app.
+toolbarMode = "minimal"
