@@ -183,6 +183,8 @@ _STRINGS: dict[str, dict[str, str]] = {
     "ui.contradictions_label": {"en": "Contradictions: {items}", "ar": "تناقضات: {items}"},
     "ui.history_header": {"en": "Cycle history", "ar": "سجل الدورات"},
     "ui.log_expander": {"en": "Log ({n} cycles)", "ar": "السجل ({n} دورة)"},
+    "ui.chart_cycle": {"en": "cycle", "ar": "الدورة"},
+    "ui.chart_risk": {"en": "risk score", "ar": "درجة الخطورة"},
     "ui.col_cycle": {"en": "cycle", "ar": "الدورة"},
     "ui.col_zone": {"en": "zone", "ar": "المنطقة"},
     "ui.col_risk": {"en": "risk_score", "ar": "درجة الخطورة"},

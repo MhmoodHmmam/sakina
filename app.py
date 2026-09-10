@@ -17,6 +17,7 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
+import altair as alt
 import pandas as pd
 import pydeck as pdk
 import streamlit as st
@@ -115,6 +116,26 @@ CSS = f"""
   .badge.cache {{ background: #8957e5; color: #fff; }}
   .risk {{ font-size: 38px; font-weight: 700; line-height: 1; font-family: var(--mono); }}
   .rtl-note {{ color: var(--muted); font-size: 11px; font-style: italic; margin-top: 4px; }}
+  .callout {{ border-inline-start: 3px solid var(--accent); background: var(--panel);
+    border-start-end-radius: 6px; border-end-end-radius: 6px; padding: 11px 14px;
+    margin: 6px 0 10px; font-size: 13.5px; line-height: 1.6; color: var(--ink); text-align: start; }}
+  .callout.contra {{ border-inline-start-color: var(--warn); color: var(--warn); font-size: 12.5px; }}
+  [data-testid="stMetric"] {{ background: var(--panel); border: 1px solid var(--rule);
+    border-radius: 10px; padding: 12px 14px; }}
+  [data-testid="stMetricLabel"] {{ color: var(--muted) !important; font-size: 12px !important; }}
+  [data-testid="stMetricValue"] {{ font-family: var(--mono) !important; color: var(--ink) !important;
+    font-size: 26px !important; }}
+  [data-testid="stMetricDelta"] {{ font-family: var(--mono) !important; font-size: 12px !important; }}
+  [data-testid="stExpander"] details {{ background: var(--panel); border: 1px solid var(--rule);
+    border-radius: 10px; }}
+  [data-testid="stExpander"] summary {{ font-size: 13px; color: var(--muted); }}
+  [data-testid="stExpander"] summary:hover {{ color: var(--accent); }}
+  [data-testid="stDataFrame"] {{ border: 1px solid var(--rule); border-radius: 8px; }}
+  .stCode, pre {{ background: var(--panel-2) !important; border: 1px solid var(--rule);
+    border-radius: 8px; font-family: var(--mono) !important; font-size: 11.5px !important; }}
+  [data-testid="stVegaLiteChart"] {{ background: transparent; }}
+  hr {{ border-color: var(--rule); }}
+  .stSlider, .stRadio label {{ color: var(--ink); }}
 </style>
 """
 st.markdown(CSS, unsafe_allow_html=True)
@@ -168,6 +189,59 @@ def risk_color(score: float | None) -> list[int]:
     if score >= config.THRESHOLDS.escalate_at:
         return [232, 163, 61, 220]  # warm
     return [76, 195, 138, 200]  # calm
+
+
+# Categorical, deliberately NOT the risk palette: a line's colour identifies
+# WHICH zone, while amber/red are reserved for severity. Reusing the risk
+# colours for series identity would make a calm zone's line read as "danger".
+ZONE_SERIES_COLORS = ["#3fd8c4", "#8a7ff0", "#5aa9e6", "#e07ba8"]
+
+
+def history_chart(hist_df: pd.DataFrame, lang: str) -> alt.LayerChart:
+    """Risk over cycles, with the agent's two decision thresholds drawn in.
+
+    The thresholds are the point: without them a reader cannot tell whether a
+    given score meant "keep watching" or "verify identity and consider
+    elevating". Y is pinned to 0-1 so those lines stay where the eye expects.
+    """
+    axis_kw = dict(labelColor="#8fa69d", titleColor="#8fa69d", tickColor="#8fa69d55",
+                   domainColor="#8fa69d55", labelFont="IBM Plex Mono",
+                   titleFont="IBM Plex Sans Arabic", labelFontSize=11, titleFontSize=11)
+
+    line = alt.Chart(hist_df).mark_line(
+        strokeWidth=2, point=alt.OverlayMarkDef(size=48, filled=True),
+    ).encode(
+        x=alt.X("cycle:Q", title=T("ui.chart_cycle"),
+                axis=alt.Axis(tickMinStep=1, grid=False, **axis_kw)),
+        y=alt.Y("risk_score:Q", title=T("ui.chart_risk"),
+                scale=alt.Scale(domain=[0, 1], nice=False),
+                axis=alt.Axis(grid=True, gridColor="#8fa69d1f", **axis_kw)),
+        color=alt.Color("zone:N", title=None,
+                        scale=alt.Scale(range=ZONE_SERIES_COLORS),
+                        legend=alt.Legend(orient="top", labelColor="#e7f1ec",
+                                          labelFont="IBM Plex Sans Arabic",
+                                          labelFontSize=11, symbolStrokeWidth=3)),
+        tooltip=[alt.Tooltip("cycle:Q", title=T("ui.col_cycle")),
+                 alt.Tooltip("zone:N", title=T("ui.col_zone")),
+                 alt.Tooltip("risk_score:Q", title=T("ui.col_risk"), format=".2f"),
+                 alt.Tooltip("model:N", title=T("ui.col_model"))],
+    )
+
+    def threshold(value: float, color: str):
+        return alt.Chart(pd.DataFrame({"y": [value]})).mark_rule(
+            color=color, strokeDash=[4, 4], strokeWidth=1, opacity=0.85,
+        ).encode(y=alt.Y("y:Q", scale=alt.Scale(domain=[0, 1], nice=False)))
+
+    return (
+        threshold(config.THRESHOLDS.escalate_at, "#e8a33d")
+        + threshold(config.THRESHOLDS.act_at, "#e2574c")
+        + line
+    ).properties(
+        height=210, width="container",
+        padding={"left": 46, "top": 8, "right": 14, "bottom": 8},
+    ).configure_view(
+        strokeWidth=0, fill="transparent"
+    ).configure(background="transparent")
 
 
 def zone_map_df(statuses: dict[str, ZoneStatus]) -> pd.DataFrame:
@@ -296,9 +370,15 @@ with left:
             f'{T("ui.confidence_via", confidence=i18n.confidence_label(a["confidence"], lang), model=a["model"])}</div>',
             unsafe_allow_html=True,
         )
-        st.info(a["reading"])
+        st.markdown(
+            f'<div class="callout reading">{a["reading"]}</div>', unsafe_allow_html=True
+        )
         if a.get("contradictions"):
-            st.warning(T("ui.contradictions_label", items="; ".join(a["contradictions"])))
+            st.markdown(
+                f'<div class="callout contra">'
+                f'{T("ui.contradictions_label", items="; ".join(a["contradictions"]))}</div>',
+                unsafe_allow_html=True,
+            )
 
     st.markdown(f"#### {T('ui.zones_header')}")
     statuses = st.session_state["zone_status"]
@@ -365,10 +445,7 @@ with left:
     if st.session_state["history"]:
         st.markdown(f"#### {T('ui.history_header')}")
         hist_df = pd.DataFrame(st.session_state["history"])
-        chart_df = hist_df.pivot_table(
-            index="cycle", columns="zone", values="risk_score", aggfunc="last"
-        )
-        st.line_chart(chart_df, height=180)
+        st.altair_chart(history_chart(hist_df, lang), use_container_width=True)
         with st.expander(T("ui.log_expander", n=len(hist_df))):
             display_df = hist_df[["cycle", "zone", "risk_score", "confidence", "model", "reading"]].rename(
                 columns={

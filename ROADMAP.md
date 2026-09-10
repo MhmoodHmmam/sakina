@@ -109,7 +109,7 @@ Everything downstream is unverified until these land. Do not start Stage 2 first
   Groq with valid, evidence-grounded reasoning.
 
 - [x] **S1.4** Fill in `SAKINA_Idea_Capture.docx` — done 2026-07-17. Submitter
-  MhmoodHmmam, team SAKINA, contact mhmood.hmmam@gmail.com, submission date
+  Mahmoud Samaha, team SAKINA, contact mhmud.smaha@gmail.com, submission date
   20 Aug 2026 (the internal target, not the 23 Aug hard deadline).
 
 ---
