@@ -375,7 +375,7 @@ handing an impersonator priority spectrum is not.
   falling-congestion + improving-confidence window as genuine dispersal.
   Groq fallback path separately confirmed working (fired automatically before
   this fix, valid output).
-- ⬜ Pitch deck, architecture diagram, demo video
+- ✅ Pitch deck (EN/AR), Idea Capture doc, demo video (narrated, 2:26) — in `../submission-kit/`, outside the repo
 
 ## Conventions
 
