@@ -385,6 +385,21 @@ handing an impersonator priority spectrum is not.
 - **Solo constraints are real.** Suggest less, not more.
 - Update this file when a fact changes. It is the memory.
 
+## Streamlit Community Cloud renders the app inside an iframe
+
+Verified 2026-09-10. The hosted page at `sakina.streamlit.app` is a shell; the
+actual app lives in `<iframe src="https://sakina.streamlit.app/~/+/">`
+(same-origin). Any automation against the hosted URL — Playwright locators,
+`wait_for_selector`, accessibility-tree reads — must target **that frame**;
+page-level selectors never see the app and time out looking for the Run
+button. Locally (`streamlit run`) there is no iframe. `scratchpad/
+capture_hosted.py` shows the pattern (`page.frames` → url contains `/~/+/`).
+Screenshots via `page.screenshot()` still capture the whole thing, and
+`page.mouse.wheel` scrolls whatever is under the cursor, so those don't need
+the frame. Also: `curl` on the hosted URL returns a 303 to
+`share.streamlit.io/-/auth/app` — that's the anonymous session-cookie
+handshake, not a private-app login wall; the app is public.
+
 ## Environment gotcha: tool sandbox is filesystem-isolated from the real desktop
 
 Found during the S3.2 ngrok demo, 2026-07-17. Claude Code's Bash/PowerShell

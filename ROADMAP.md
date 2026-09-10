@@ -242,7 +242,9 @@ Start Aug 24 — assume Phase 1 passes. 17 days is not enough to start from zero
 
 ## Stage 4 — Demo + submission · *Sep 8 → Sep 12*
 
-- [ ] **S4.1** Demo script — 3 min hard cap. Suggested beats:
+- [x] **S4.1** Demo script — done 2026-09-10 as on-screen captions baked into the
+  recording (see S4.2); a voice-over script matching them is in the submission
+  notes. Original beat sheet kept below for reference:
   - 0:00–0:20 Mina 2015. 2,000 dead. Density is invisible until it's lethal.
   - 0:20–0:50 The confidence insight. Show the four buckets. "A rule engine reads
     Low and stands down."
@@ -252,7 +254,17 @@ Start Aug 24 — assume Phase 1 passes. 17 days is not enough to start from zero
     Bravo cleared. **QoD fires live.**
   - 2:30–3:00 7 APIs, one agent, business impact.
 
-- [ ] **S4.2** Record it. **Split screen: UI + live API log.** The log proving real
+- [x] **S4.2** Recorded 2026-09-10 — `SAKINA_demo.mp4`, 1:55, 1920×1080 H.264.
+  Not a screen-capture by hand: Playwright drove Edge headless against the
+  running console, one fresh session per attempt until a cycle escalated
+  (first attempt hit risk 0.85 → identity gate → Alpha refused / Bravo
+  cleared → live QoD session → 14/14 live calls), then switched to Arabic and
+  ran one more real cycle. Captions are injected into the page DOM during
+  recording so they sit in the console's own font, perfectly in sync with what
+  is on screen; designed title cards (Mina 2015 · the confidence insight ·
+  close) rendered from HTML and stitched with ffmpeg. The QoD session the
+  recording created was released afterwards. Silent — a voice-over script is
+  provided if narration is wanted. Original note: **Split screen: UI + live API log.** The log proving real
   NaC traffic is what separates a prototype from a mockup. "Functionality and
   stability of the prototype" is a scored line.
 

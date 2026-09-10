@@ -13,6 +13,16 @@ Innovation · Built on Nokia Network-as-Code (CAMARA).
 
 **Live demo:** https://sakina.streamlit.app · **Repo:** https://github.com/MhmoodHmmam/sakina
 
+![SAKINA operator console — an escalated cycle at risk 0.55 with the reasoning trace](docs/screenshots/console_escalated.png)
+
+<details><summary>More screenshots — identity gate, Arabic RTL console, cycle history</summary>
+
+![Identity gate: Alpha refused (SIM swap, roaming, position unconfirmed), Bravo cleared](docs/screenshots/identity_gate.png)
+![Arabic, right-to-left — the model reasons in Arabic](docs/screenshots/console_arabic_rtl.png)
+![Cycle history with the two decision thresholds drawn in](docs/screenshots/history_and_metrics.png)
+
+</details>
+
 ---
 
 ## The problem
