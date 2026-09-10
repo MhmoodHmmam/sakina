@@ -11,6 +11,8 @@ whose identity the network can vouch for.
 GSMA MENA Ignite Hackathon · Theme 3: Tourism, Pilgrimage & Cultural Experience
 Innovation · Built on Nokia Network-as-Code (CAMARA).
 
+**Live demo:** https://sakina.streamlit.app · **Repo:** https://github.com/MhmoodHmmam/sakina
+
 ---
 
 ## The problem

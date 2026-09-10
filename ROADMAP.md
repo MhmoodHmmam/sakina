@@ -219,7 +219,12 @@ Start Aug 24 — assume Phase 1 passes. 17 days is not enough to start from zero
     `LLMUnavailable` was already routed to heuristic/fail-closed.
   15 new tests total (`test_brain.py`, `test_camara.py`,
   `test_agent_resilience.py`) — 36 passing overall.
-- [ ] **S3.6** Deploy to Streamlit Community Cloud (Guide §6). Judges may click.
+- [x] **S3.6** Deploy to Streamlit Community Cloud — done. Live at
+  **https://sakina.streamlit.app** (public, no login wall). Verified from a
+  clean browser session on 2026-09-10: a full cycle ran 3 CAMARA calls, all
+  LIVE, with Gemini reasoning — confirming `NAC_API_KEY` and `GEMINI_API_KEY`
+  are correctly set as Streamlit Cloud secrets, and that the theme config
+  carries to the hosted build.
 
   Repo pushed 2026-07-17: **https://github.com/MhmoodHmmam/sakina** (public,
   required for the free tier). Secrets (`NAC_API_KEY`, `GEMINI_API_KEY`,

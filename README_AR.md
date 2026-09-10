@@ -12,6 +12,8 @@
 هاكاثون GSMA MENA Ignite · الموضوع 3: السياحة والحج والابتكار الثقافي ·
 مبني على Nokia Network-as-Code (CAMARA).
 
+**العرض الحي:** https://sakina.streamlit.app · **المستودع:** https://github.com/MhmoodHmmam/sakina
+
 ---
 
 ## المشكلة
