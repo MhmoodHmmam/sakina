@@ -251,10 +251,6 @@ SAKINA sits on ground others have already mapped. Naming it is fairer to them an
 
 What that buys a control room: earlier warning without new hardware; no false comfort from a confident-looking *Low*; and priority bandwidth an impersonator cannot obtain.
 
-## Licence
-
-MIT
-
 ## License
 
 MIT — see [LICENSE](LICENSE).
