@@ -1,6 +1,6 @@
 """The reasoning layer.
 
-Primary: Gemini 2.5 Flash (Google AI Studio free tier).
+Primary: Gemini Flash-Lite — config.PRIMARY_MODEL (Google AI Studio free tier).
 Fallback: Groq Llama 3.3 70B (free tier) when Gemini rate-limits.
 Both appear in the AI Resource & Tooling Guide. No other model providers.
 
@@ -13,7 +13,6 @@ from __future__ import annotations
 import json
 import re
 from dataclasses import dataclass
-from typing import Any
 
 from . import config
 from .trace import Trace
@@ -90,7 +89,7 @@ def reason(system: str, user: str, trace: Trace, label: str) -> dict:
         except Exception as exc:
             trace.degrade(
                 f"{name} unavailable",
-                f"{type(exc).__name__}: {exc} — trying next provider",
+                f"{label}: {type(exc).__name__}: {exc} — trying next provider",
             )
             continue
     raise LLMUnavailable("no model provider reachable")
@@ -212,7 +211,7 @@ class Assessment:
     model: str
 
     @classmethod
-    def from_json(cls, d: dict) -> "Assessment":
+    def from_json(cls, d: dict) -> Assessment:
         return cls(
             risk_score=float(d.get("risk_score", 0.0)),
             confidence=str(d.get("confidence", "low")),

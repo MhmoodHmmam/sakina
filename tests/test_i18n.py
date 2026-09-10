@@ -10,12 +10,8 @@ than at demo time.
 from __future__ import annotations
 
 import re
-import sys
-from pathlib import Path
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from sakina import i18n  # noqa: E402
+from sakina import i18n
 
 
 def _placeholders(template: str) -> set[str]:

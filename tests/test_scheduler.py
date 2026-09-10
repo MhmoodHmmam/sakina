@@ -10,16 +10,12 @@ tested the same way.
 """
 from __future__ import annotations
 
-import sys
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from sakina import config
+from sakina.scheduler import ZoneStatus, explain, pick_next_zone
 
-from sakina import config  # noqa: E402
-from sakina.scheduler import ZoneStatus, explain, pick_next_zone  # noqa: E402
-
-NOW = datetime(2026, 7, 17, 12, 0, 0, tzinfo=timezone.utc)
+NOW = datetime(2026, 7, 17, 12, 0, 0, tzinfo=UTC)
 
 
 def fresh_statuses() -> dict[str, ZoneStatus]:

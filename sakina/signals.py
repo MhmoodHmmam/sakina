@@ -12,8 +12,8 @@ equal is the mistake every rule engine makes.
 """
 from __future__ import annotations
 
-from dataclasses import dataclass, asdict
-from datetime import datetime, timezone
+from dataclasses import asdict, dataclass
+from datetime import UTC, datetime
 from typing import Any
 
 from .config import CONGESTION_ORDINAL, THRESHOLDS, Zone
@@ -21,7 +21,7 @@ from .config import CONGESTION_ORDINAL, THRESHOLDS, Zone
 
 def _parse_ts(value: Any) -> datetime | None:
     if isinstance(value, datetime):
-        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+        return value if value.tzinfo else value.replace(tzinfo=UTC)
     if not isinstance(value, str):
         return None
     raw = value.replace("Z", "+00:00")
@@ -29,7 +29,7 @@ def _parse_ts(value: Any) -> datetime | None:
         dt = datetime.fromisoformat(raw)
     except ValueError:
         return None
-    return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    return dt if dt.tzinfo else dt.replace(tzinfo=UTC)
 
 
 def _get(d: dict, *names: str, default: Any = None) -> Any:
@@ -71,7 +71,7 @@ class CongestionRead:
     buckets: list[CongestionBucket]
 
     @classmethod
-    def parse(cls, raw: list[dict]) -> "CongestionRead":
+    def parse(cls, raw: list[dict]) -> CongestionRead:
         out: list[CongestionBucket] = []
         for b in raw or []:
             out.append(
@@ -82,7 +82,7 @@ class CongestionRead:
                     confidence=int(_get(b, "confidenceLevel", "confidence_level", default=0)),
                 )
             )
-        out.sort(key=lambda b: b.start or datetime.min.replace(tzinfo=timezone.utc))
+        out.sort(key=lambda b: b.start or datetime.min.replace(tzinfo=UTC))
         return cls(out)
 
     # -- derived views --------------------------------------------------------
@@ -179,7 +179,7 @@ class LocationRead:
     last_seen: datetime | None
 
     @classmethod
-    def parse(cls, raw: dict) -> "LocationRead":
+    def parse(cls, raw: dict) -> LocationRead:
         area = _get(raw or {}, "area", default={}) or {}
         centre = _get(area, "center", "centre", default={}) or {}
         return cls(
@@ -193,7 +193,7 @@ class LocationRead:
     def age_s(self) -> float | None:
         if not self.last_seen:
             return None
-        return (datetime.now(timezone.utc) - self.last_seen).total_seconds()
+        return (datetime.now(UTC) - self.last_seen).total_seconds()
 
     @property
     def stale(self) -> bool:
@@ -232,7 +232,7 @@ class ReachabilityRead:
     last_seen: datetime | None
 
     @classmethod
-    def parse(cls, raw: dict) -> "ReachabilityRead":
+    def parse(cls, raw: dict) -> ReachabilityRead:
         conn = _get(raw or {}, "connectivity", default=[]) or []
         return cls(
             reachable=bool(_get(raw or {}, "reachable", default=False)),
@@ -279,7 +279,7 @@ class IdentityRead:
     def swap_age_h(self) -> float | None:
         if not self.swap_time:
             return None
-        return (datetime.now(timezone.utc) - self.swap_time).total_seconds() / 3600
+        return (datetime.now(UTC) - self.swap_time).total_seconds() / 3600
 
     @property
     def concerns(self) -> list[str]:
@@ -348,7 +348,7 @@ class ZoneEvidence:
     def stale_ratio(self) -> float:
         if not self.locations:
             return 0.0
-        return sum(1 for l in self.locations if l.stale) / len(self.locations)
+        return sum(1 for loc in self.locations if loc.stale) / len(self.locations)
 
     def render(self) -> str:
         z = self.zone
@@ -358,17 +358,17 @@ class ZoneEvidence:
             "Congestion window (oldest first):",
             self.congestion.render(),
             "",
-            f"Corroborating signals:",
+            "Corroborating signals:",
             f"  devices on SMS-only fallback: {self.sms_only_ratio:.0%}",
             f"  location fixes stale (>{THRESHOLDS.stale_after_s}s): {self.stale_ratio:.0%}",
         ]
-        for l in self.locations:
-            if l.latitude is not None:
+        for loc in self.locations:
+            if loc.latitude is not None:
                 lines.append(
-                    f"  fix: {l.latitude:.4f},{l.longitude:.4f} "
-                    f"r={l.radius_m}m ({l.precision_note}, "
-                    f"{l.age_s:.0f}s old)" if l.age_s is not None else
-                    f"  fix: {l.latitude:.4f},{l.longitude:.4f} r={l.radius_m}m"
+                    f"  fix: {loc.latitude:.4f},{loc.longitude:.4f} "
+                    f"r={loc.radius_m}m ({loc.precision_note}, "
+                    f"{loc.age_s:.0f}s old)" if loc.age_s is not None else
+                    f"  fix: {loc.latitude:.4f},{loc.longitude:.4f} r={loc.radius_m}m"
                 )
         return "\n".join(lines)
 

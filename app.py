@@ -15,7 +15,8 @@ selected — this is not a translation layer bolted on afterwards).
 """
 from __future__ import annotations
 
-from datetime import datetime, timezone
+import html
+from datetime import UTC, datetime
 
 import altair as alt
 import pandas as pd
@@ -147,6 +148,19 @@ def get_agent(mode: str) -> Sakina:
     return Sakina(CamaraTools(mode=mode))  # type: ignore[arg-type]
 
 
+def html_text(s: str) -> str:
+    """Free text -> safe inline HTML for st.markdown(unsafe_allow_html=True).
+
+    Two things go wrong otherwise. Model prose and exception messages can
+    contain markup, so escape. And Streamlit's markdown parser ends a raw
+    HTML block at the first blank line — a reasoning paragraph break would
+    push the rest of the text through the markdown parser, where a leading
+    "*", "#" or "1." becomes emphasis, a heading or a list. Newlines become
+    <br> so the block is one uninterrupted piece of HTML.
+    """
+    return html.escape(s).replace("\n", "<br>")
+
+
 def render_trace(trace: Trace) -> str:
     css = {
         EventKind.PHASE: "phase",
@@ -167,7 +181,7 @@ def render_trace(trace: Trace) -> str:
         klass = css[e.kind]
         if e.kind is EventKind.API_CALL and e.source is Source.CACHE:
             klass += " cache"
-        head = f"{glyph[e.kind]} {e.label}".strip()
+        head = f"{glyph[e.kind]} {html_text(e.label)}".strip()
         if e.api:
             tag = "live" if e.source is Source.LIVE else "cache"
             badge_text = T("ui.badge_live") if tag == "live" else T("ui.badge_cache")
@@ -175,7 +189,7 @@ def render_trace(trace: Trace) -> str:
                      f'<span style="color:#6e7681;font-size:11px"> {e.latency_ms:.0f}ms</span>')
         block = f'<div class="trace-row {klass}">{head}'
         if e.detail:
-            block += f'<div class="trace-detail">{e.detail}</div>'
+            block += f'<div class="trace-detail">{html_text(e.detail)}</div>'
         block += "</div>"
         out.append(block)
     return "".join(out)
@@ -198,16 +212,17 @@ def risk_color(score: float | None) -> list[int]:
 ZONE_SERIES_COLORS = ["#3fd8c4", "#8a7ff0", "#5aa9e6", "#e07ba8"]
 
 
-def history_chart(hist_df: pd.DataFrame, lang: str) -> alt.LayerChart:
+def history_chart(hist_df: pd.DataFrame) -> alt.LayerChart:
     """Risk over cycles, with the agent's two decision thresholds drawn in.
 
     The thresholds are the point: without them a reader cannot tell whether a
     given score meant "keep watching" or "verify identity and consider
     elevating". Y is pinned to 0-1 so those lines stay where the eye expects.
     """
-    axis_kw = dict(labelColor="#8fa69d", titleColor="#8fa69d", tickColor="#8fa69d55",
-                   domainColor="#8fa69d55", labelFont="IBM Plex Mono",
-                   titleFont="IBM Plex Sans Arabic", labelFontSize=11, titleFontSize=11)
+    axis_kw = {
+        "labelColor": "#8fa69d", "titleColor": "#8fa69d", "tickColor": "#8fa69d55", "domainColor": "#8fa69d55",
+        "labelFont": "IBM Plex Mono", "titleFont": "IBM Plex Sans Arabic", "labelFontSize": 11, "titleFontSize": 11,
+    }
 
     line = alt.Chart(hist_df).mark_line(
         strokeWidth=2, point=alt.OverlayMarkDef(size=48, filled=True),
@@ -344,7 +359,7 @@ if run:
         st.rerun()
 
     a = state["assessment"]
-    now = datetime.now(timezone.utc)
+    now = datetime.now(UTC)
     statuses[chosen] = ZoneStatus(
         zone_id=chosen,
         last_risk=a["risk_score"],
@@ -377,20 +392,27 @@ with left:
     if "assessment" in st.session_state:
         a = st.session_state["assessment"]
         st.markdown(f"#### {T('ui.current_reading', zone=st.session_state.get('assessment_zone', ''))}")
+        risk = a["risk_score"]
+        if risk >= config.THRESHOLDS.act_at:
+            tone = "var(--danger)"
+        elif risk >= config.THRESHOLDS.escalate_at:
+            tone = "var(--warn)"
+        else:
+            tone = "var(--ok)"
+        confidence = i18n.confidence_label(a["confidence"], lang)
         st.markdown(
-            f'<div class="risk" style="color:{"var(--danger)" if a["risk_score"]>=0.7 else "var(--warn)" if a["risk_score"]>=0.55 else "var(--ok)"}">'
-            f'{a["risk_score"]:.2f}</div>'
+            f'<div class="risk" style="color:{tone}">{risk:.2f}</div>'
             f'<div style="color:var(--muted);font-size:12px;margin-bottom:8px">'
-            f'{T("ui.confidence_via", confidence=i18n.confidence_label(a["confidence"], lang), model=a["model"])}</div>',
+            f'{T("ui.confidence_via", confidence=confidence, model=html.escape(a["model"]))}</div>',
             unsafe_allow_html=True,
         )
         st.markdown(
-            f'<div class="callout reading">{a["reading"]}</div>', unsafe_allow_html=True
+            f'<div class="callout reading">{html_text(a["reading"])}</div>', unsafe_allow_html=True
         )
         if a.get("contradictions"):
             st.markdown(
                 f'<div class="callout contra">'
-                f'{T("ui.contradictions_label", items="; ".join(a["contradictions"]))}</div>',
+                f'{T("ui.contradictions_label", items="; ".join(html_text(c) for c in a["contradictions"]))}</div>',
                 unsafe_allow_html=True,
             )
 
@@ -444,7 +466,8 @@ with left:
                 " warm" if score >= config.THRESHOLDS.escalate_at else "")
         if st.session_state.get("assessment_zone") == z.name:
             klass += " chosen"
-        badge = f"<b style='color:var(--ink)'>{score:.2f}</b>" if score is not None else "<span style='color:var(--muted)'>—</span>"
+        badge = (f"<b style='color:var(--ink)'>{score:.2f}</b>" if score is not None
+                 else "<span style='color:var(--muted)'>—</span>")
         if not config.devices_in_zone(z.id):
             due = T("ui.no_probe")
         elif s and s.last_polled:
@@ -464,7 +487,7 @@ with left:
     if st.session_state["history"]:
         st.markdown(f"#### {T('ui.history_header')}")
         hist_df = pd.DataFrame(st.session_state["history"])
-        st.altair_chart(history_chart(hist_df, lang), use_container_width=True)
+        st.altair_chart(history_chart(hist_df), use_container_width=True)
         with st.expander(T("ui.log_expander", n=len(hist_df))):
             display_df = hist_df[["cycle", "zone", "risk_score", "confidence", "model", "reading"]].rename(
                 columns={
@@ -482,7 +505,7 @@ with right:
     slot = st.empty()
 
     if err := st.session_state.pop("cycle_error", None):
-        st.markdown(f'<div class="callout error">{err}</div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="callout error">{html_text(err)}</div>', unsafe_allow_html=True)
     if "last_trace_html" in st.session_state:
         slot.markdown(st.session_state["last_trace_html"], unsafe_allow_html=True)
 

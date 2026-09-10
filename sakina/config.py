@@ -5,7 +5,7 @@ All tunables live here. Zone geometry, device roster, thresholds, model choice.
 from __future__ import annotations
 
 import os
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from typing import Literal
 
 from dotenv import load_dotenv

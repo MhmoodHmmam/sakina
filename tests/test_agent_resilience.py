@@ -11,15 +11,10 @@ using recorded fixtures so no network or API key is needed.
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from sakina import brain  # noqa: E402
-from sakina.agent import Sakina  # noqa: E402
-from sakina.camara import CamaraTools  # noqa: E402
-from sakina.trace import EventKind  # noqa: E402
+from sakina import brain
+from sakina.agent import Sakina
+from sakina.camara import CamaraTools
+from sakina.trace import EventKind
 
 
 def test_full_cycle_survives_malformed_model_output(monkeypatch):

@@ -203,7 +203,7 @@ the Nokia portal.
 
 ```bash
 python run_cycle.py jamarat-bridge   # headless, prints the reasoning trace
-python -m pytest tests/ -v           # 49 tests
+python -m pytest tests/ -v           # 53 tests
 ```
 
 ### Credentials
@@ -225,7 +225,7 @@ sakina/
   brain.py      LLM reasoning + prompts + provider fallback + Arabic directive
   agent.py      LangGraph StateGraph
 app.py          Streamlit operator console (bilingual, RTL)
-tests/          49 tests against real playground payloads and live-confirmed bugs
+tests/          53 tests against real playground payloads and live-confirmed bugs
 fixtures/       recorded Nokia NaC responses
 ```
 
@@ -242,3 +242,7 @@ respond. QoS profile `DOWNLINK_M_UPLINK_L`. Simulator numbers `+99999991000`
 ## Licence
 
 MIT
+
+## License
+
+MIT — see [LICENSE](LICENSE).

@@ -11,16 +11,11 @@ from S1.1.
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from sakina import config  # noqa: E402
-from sakina.camara import CamaraTools  # noqa: E402
-from sakina.trace import EventKind, Source, Trace  # noqa: E402
+from sakina import config
+from sakina.camara import CamaraTools
+from sakina.trace import EventKind, Source, Trace
 
 PROBE = config.DEVICES_BY_NUMBER["+99999991002"]  # has a recorded congestion_ fixture
 

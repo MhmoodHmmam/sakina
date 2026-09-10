@@ -18,7 +18,7 @@ the two are deliberately kept apart.
 from __future__ import annotations
 
 import operator
-from typing import Annotated, Any, TypedDict
+from typing import Annotated, TypedDict
 
 from langgraph.graph import END, StateGraph
 

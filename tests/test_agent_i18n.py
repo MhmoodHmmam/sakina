@@ -1,19 +1,35 @@
 """End-to-end check that agent.cycle(language="ar") actually produces an
 Arabic trace, not just that i18n.py's lookup table is internally consistent.
-Uses replay mode against the recorded fixtures — no network, no API keys.
+Uses replay mode against the recorded fixtures and a stubbed model, so it is
+hermetic: no network, no API keys, and no quota burned per test run. The
+phase labels under test come from i18n.py, not from the model.
 
     python -m pytest tests/ -v
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
+import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from sakina import brain
+from sakina.agent import Sakina
+from sakina.camara import CamaraTools
+from sakina.trace import EventKind
 
-from sakina.agent import Sakina  # noqa: E402
-from sakina.camara import CamaraTools  # noqa: E402
-from sakina.trace import EventKind  # noqa: E402
+# Risk above escalate_at so the cycle walks VERIFY -> DECIDE -> REPORT; an empty
+# decisions list is a valid verdict that elevates nobody.
+_CANNED_MODEL = {
+    "risk_score": 0.72,
+    "confidence": "medium",
+    "reading": "stubbed",
+    "escalate_identity_check": True,
+    "decisions": [],
+    "_model": "stub",
+}
+
+
+@pytest.fixture(autouse=True)
+def stub_model(monkeypatch):
+    monkeypatch.setattr(brain, "reason", lambda *a, **k: dict(_CANNED_MODEL))
 
 
 def test_arabic_cycle_produces_arabic_phase_labels():

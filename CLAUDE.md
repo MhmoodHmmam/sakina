@@ -206,7 +206,7 @@ Violating any of these is disqualification:
 | Layer | Choice | Guide § |
 |---|---|---|
 | Orchestration | LangGraph | §2 code-first frameworks |
-| Reasoning | Gemini 2.5 Flash (Google AI Studio) | §3 hosted, free tier |
+| Reasoning | Gemini Flash-Lite (`gemini-flash-lite-latest`, Google AI Studio) | §3 hosted, free tier |
 | Fallback | Groq Llama 3.3 70B | §3 rate-limit resilience |
 | UI | Streamlit | §6 hosting & deployment |
 | Data | Nokia Network-as-Code | §5 CAMARA |
@@ -319,6 +319,17 @@ to change. Known accepted limitation: pydeck's map and Streamlit's native
 chart/dataframe internals do not mirror — flagged in the UI itself when
 Arabic is selected.
 
+**Same bug class, second sighting (review pass, 2026-09-10):** a trace
+detail with a paragraph break (`agent.py` builds the ASSESS detail as
+`reading\n\nreasoning\n\n…`) also ends the raw-HTML block, so everything
+after the blank line went through the markdown parser and came out as
+`<p>` elements — invisible today, but a model line starting with `*`, `#`
+or `1.` would have rendered as emphasis, a heading or a list. `app.py`'s
+`html_text()` escapes free text and turns newlines into `<br>` so every
+model/exception string reaches `st.markdown` as one uninterrupted HTML
+block. Confirmed in the DOM before and after (`.trace-detail` children:
+two `<p>` → only `<br>`). Route any new free-text render through it.
+
 ## Operating modes
 
 - `live` — Nokia NaC only; raises on failure
@@ -331,11 +342,11 @@ Arabic is selected.
 **Fail closed:** no model → no QoD elevation. Refusing a medic is recoverable;
 handing an impersonator priority spectrum is not.
 
-## Current status (2026-07-15)
+## Current status (updated 2026-09-10)
 
 - ✅ 7 CAMARA APIs verified live in the portal playground
 - ✅ LangGraph agent executes end-to-end: 14 calls, 5 API families
-- ✅ 21 tests passing on the confidence-weighting core
+- ✅ 53 tests passing (confidence weighting, scheduler, brain validation, camara modes, i18n parity, agent resilience) — `ruff check .` clean, CI on every push
 - ✅ Streamlit console renders the live trace
 - ✅ **Replay mode fixed (2026-07-17).** `fixtures/*.json` recorded from live
   calls covering everything `agent.cycle()` actually touches: congestion,
@@ -373,7 +384,7 @@ handing an impersonator priority spectrum is not.
 - No new deps outside the Guide
 - Every CAMARA call goes through `CamaraTools._invoke` — never call the SDK
   directly from a node
-- Run `python -m pytest tests/ -q` before every commit
+- Run `ruff check .` and `python -m pytest tests/ -q` before every commit (CI runs both)
 - Secrets only in `.env` (gitignored). Never commit a key. Never paste a key into
   a chat or a commit message.
 

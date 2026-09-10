@@ -3,8 +3,6 @@
     python run_cycle.py jamarat-bridge
 """
 import sys
-from dotenv import load_dotenv
-load_dotenv()
 
 from sakina.agent import Sakina
 from sakina.camara import CamaraTools

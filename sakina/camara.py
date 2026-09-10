@@ -12,9 +12,10 @@ from __future__ import annotations
 
 import json
 import time
-from datetime import datetime, timedelta, timezone
+from collections.abc import Callable
+from datetime import UTC, datetime, timedelta
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 
 from . import config, i18n
 from .trace import Source, Trace
@@ -106,7 +107,7 @@ class CamaraTools:
         self._client = _build_client() if self.mode != "replay" else None
         self.language: str = "en"  # set by agent.py::cycle() per call, "en" | "ar"
 
-    def bind(self, trace: Trace) -> "CamaraTools":
+    def bind(self, trace: Trace) -> CamaraTools:
         self.trace = trace
         return self
 
@@ -173,7 +174,7 @@ class CamaraTools:
         field is the whole reason this project needs an LLM: it turns a reading
         into evidence of varying weight rather than a fact.
         """
-        now = datetime.now(timezone.utc)
+        now = datetime.now(UTC)
         return self._invoke(
             "congestion_insights.query",
             i18n.t("api.congestion", self.language, label=device.label),

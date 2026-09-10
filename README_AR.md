@@ -228,4 +228,6 @@ fixtures/       استجابات Nokia NaC المسجَّلة
 
 ## الترخيص
 
+MIT — انظر [LICENSE](LICENSE).
+
 MIT

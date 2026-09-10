@@ -1,0 +1,37 @@
+[project]
+name = "sakina"
+version = "1.0.0"
+description = "Network-verified crowd-crush early warning for Hajj chokepoints — Nokia Network-as-Code (CAMARA) read by a LangGraph agent"
+readme = "README.md"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Mahmoud Samaha", email = "mhmud.smaha@gmail.com" }]
+
+# Runtime deps stay in requirements.txt (Streamlit Community Cloud reads that file).
+
+[tool.ruff]
+line-length = 120
+target-version = "py311"
+extend-exclude = [".venv", "fixtures"]
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "B", "UP", "SIM", "C4", "ARG", "RET", "N"]
+# LLMUnavailable is a control-flow signal the agent handles, not a bug report;
+# the -Error suffix would make the fallback path read wrong.
+# UP042: EventKind/Source stay `str, Enum` — every serialisation site reads .value
+# explicitly, so StrEnum would change nothing but __str__, which nothing relies on.
+ignore = ["N818", "UP042"]
+
+[tool.ruff.lint.per-file-ignores]
+# The Google Fonts URL inside the embedded <style> block cannot wrap, and T()
+# follows the gettext _() convention for a translation lookup.
+"app.py" = ["E501", "N802"]
+# Bilingual string table — one template per line beats a wrapped Arabic literal.
+"sakina/i18n.py" = ["E501"]
+# Recorded playground payloads are kept verbatim; stub lambdas take *a, **k on purpose.
+"tests/*" = ["E501", "ARG"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
+filterwarnings = ["ignore::DeprecationWarning:google.genai.*"]

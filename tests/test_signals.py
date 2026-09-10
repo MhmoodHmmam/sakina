@@ -9,13 +9,9 @@ playground on 2026-07-15.
 """
 from __future__ import annotations
 
-import sys
-from datetime import datetime, timedelta, timezone
-from pathlib import Path
+from datetime import UTC, datetime, timedelta
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from sakina.signals import (  # noqa: E402
+from sakina.signals import (
     CongestionRead,
     LocationRead,
     ReachabilityRead,
@@ -142,12 +138,12 @@ class TestLocation:
         assert loc.radius_m == 1000
 
     def test_old_fix_is_stale(self):
-        old = (datetime.now(timezone.utc) - timedelta(minutes=30)).isoformat()
+        old = (datetime.now(UTC) - timedelta(minutes=30)).isoformat()
         loc = LocationRead.parse({"lastLocationTime": old, "area": {"center": {"latitude": 1, "longitude": 1}, "radius": 100}})
         assert loc.stale
 
     def test_fresh_fix_is_not_stale(self):
-        now = datetime.now(timezone.utc).isoformat()
+        now = datetime.now(UTC).isoformat()
         loc = LocationRead.parse({"lastLocationTime": now, "area": {"center": {"latitude": 1, "longitude": 1}, "radius": 100}})
         assert not loc.stale
 
@@ -173,7 +169,7 @@ class TestIdentity:
         """+99999991000 as the simulator actually returns it."""
         i = parse_identity(
             {"swapped": True},
-            {"latestSimChange": datetime.now(timezone.utc).isoformat()},
+            {"latestSimChange": datetime.now(UTC).isoformat()},
             {"roaming": True, "countryName": ["HU"]},
             {"verificationResult": "FALSE"},
         )

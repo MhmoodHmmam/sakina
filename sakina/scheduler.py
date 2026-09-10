@@ -9,7 +9,7 @@ stays testable and explainable, exactly like the confidence-weighting core.
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from . import config, i18n
 
@@ -40,7 +40,7 @@ class ZoneStatus:
         crit_weight = zone.criticality / 5
         if self.last_polled is None:
             return 1000.0 + crit_weight
-        now = now or datetime.now(timezone.utc)
+        now = now or datetime.now(UTC)
         elapsed = (now - self.last_polled).total_seconds()
         overdue_ratio = elapsed / max(self.next_poll_s, 1)
         risk_weight = 0.5 + 0.5 * (self.last_risk or 0.0)
@@ -64,7 +64,7 @@ def pick_next_zone(statuses: dict[str, ZoneStatus], now: datetime | None = None)
     candidates = [zid for zid in statuses if observable(zid)]
     if not candidates:
         raise ValueError("no observable zones to schedule — no zone has an assigned device")
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     return max(candidates, key=lambda zid: statuses[zid].priority(now))
 
 
@@ -72,7 +72,7 @@ def explain(
     statuses: dict[str, ZoneStatus], chosen: str, now: datetime | None = None, language: str = "en"
 ) -> str:
     """One-line rationale for the trace — why this zone, not another."""
-    now = now or datetime.now(timezone.utc)
+    now = now or datetime.now(UTC)
     st = statuses[chosen]
     zone = config.ZONES_BY_ID[chosen]
     if st.last_polled is None:

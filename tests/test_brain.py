@@ -11,15 +11,10 @@ takes. Confirmed as a real crash (not theoretical) before writing the fix.
 """
 from __future__ import annotations
 
-import sys
-from pathlib import Path
-
 import pytest
 
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
-from sakina import brain  # noqa: E402
-from sakina.trace import EventKind, Trace  # noqa: E402
+from sakina import brain
+from sakina.trace import EventKind, Trace
 
 
 def test_assess_zone_raises_llm_unavailable_on_bad_types(monkeypatch):
