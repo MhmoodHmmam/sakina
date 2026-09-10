@@ -1,0 +1,14 @@
+# Streamlit's own theme. Without this the app runs Streamlit's default LIGHT
+# theme, so its widget chrome (labels, captions, radio text) stays dark grey
+# while app.py's injected CSS paints the surfaces dark — measured at 1.45:1
+# contrast, effectively unreadable. Setting the theme here fixes it at the
+# source instead of piling on more CSS overrides, and it carries to Streamlit
+# Community Cloud automatically because this file is committed.
+#
+# Palette matches app.py's CSS custom properties and the architecture diagram.
+[theme]
+base = "dark"
+primaryColor = "#3fd8c4"           # --accent (teal); replaces Streamlit's default red
+backgroundColor = "#0b1412"        # --bg
+secondaryBackgroundColor = "#101b18"  # --panel
+textColor = "#e7f1ec"              # --ink

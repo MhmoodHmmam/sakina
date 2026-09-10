@@ -303,7 +303,7 @@ with left:
         opacity=0.75,
     )
     st.pydeck_chart(pdk.Deck(
-        layers=[layer], initial_view_state=view, map_style=None,
+        layers=[layer], initial_view_state=view, map_style="dark",
         tooltip={"text": "{name}\nrisk: {risk_label}"},
     ), width="stretch", height=260)
 
