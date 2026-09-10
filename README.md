@@ -239,6 +239,18 @@ Verified against the Nokia NaC portal playground on 2026-07-15: all seven APIs
 respond. QoS profile `DOWNLINK_M_UPLINK_L`. Simulator numbers `+99999991000`
 (SIM-swapped, roaming HU) and `+99999991001` (clean, QoD-capable).
 
+## Related work — and what's different
+
+SAKINA sits on ground others have already mapped. Naming it is fairer to them and clearer for a reviewer.
+
+- **The network as a crowd sensor.** Orange's research on network signalling data detects stampede-class urban events at minute resolution ([Lemaire et al., PLOS ONE 2024](https://journals.plos.org/plosone/article?id=10.1371/journal.pone.0309093)) but is explicitly *not intended to be autonomous*; Orange's Flux Vision with the [CAMARA Population Density API](https://developer.orange.com/blog/camara-population-density-data-api-and-flux-vision/) monitored 100 entry points at the Paris 2024 Games. *SAKINA closes the loop — sense, judge, act — with no operator trigger.*
+- **An agent that raises QoD when congestion rises.** Nokia's [MWC26 demo with Summit Tech](https://www.summit-tech.ca/en/mwc26-nokia) has AI agents watch congestion over MCP and trigger Quality on Demand to keep an 8K stream flawless. *SAKINA treats each congestion reading as evidence of stated weight, reasons about whether falling congestion is dispersal or blindness, and decides for itself when that uncertainty is worth five more API calls.*
+- **A network check gating an agent's action.** Orange's [banking assistant](https://developer.orange.com/blog/from-blind-bots-to-network-aware-agents-securing-mobile-banking-with-mcp-and-orange-sim-swap-api/) refuses contactless payment if the SIM changed within 48 hours (July 2026). *SAKINA applies the pattern to spectrum: SIM swap, roaming and location verification gate a QoD elevation, and it fails closed.*
+- **Hajj crowd management.** Camera-based density estimation dominates — e.g. KFUPM's [US 12,417,639](https://patents.google.com/patent/US12417639) (CCTV density + SMS to pilgrims) and the CCTV deep-learning literature. *SAKINA needs no new sensors; every pilgrim already carries one.*
+- **QoD for first responders** is an established CAMARA use case ([Orange](https://developer.orange.com/apis/camara-quality-of-service-on-demand), [Flock Safety](https://www.flocksafety.com/blog/flock-safety-calls-on-mobile-network-operators-to-help-accelerate-drone-public-safety-operations)). *Not claimed as new. What is new is who gets it, and why.*
+
+What that buys a control room: earlier warning without new hardware; no false comfort from a confident-looking *Low*; and priority bandwidth an impersonator cannot obtain.
+
 ## Licence
 
 MIT
